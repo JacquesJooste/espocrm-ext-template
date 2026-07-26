@@ -1,0 +1,17 @@
+{
+  "fields": {
+    "name": {"type":"varchar","required":true,"default":"Elevate Resource Management","readOnly":true},
+    "operationsManager": {"type":"link","required":true},
+    "billingAdministrator": {"type":"link","required":true},
+    "autoMarkInvoicedOnExport": {"type":"bool","default":false},
+    "installProvenance": {"type":"jsonObject","utility":true},
+    "schemaVersion": {"type":"int","default":1,"readOnly":true}
+  },
+  "links": {
+    "operationsManager": {"type":"belongsTo","entity":"User"},
+    "billingAdministrator": {"type":"belongsTo","entity":"User"}
+  },
+  "indexes": {"settingsName":{"columns":["name"],"unique":true}},
+  "optimisticConcurrencyControl": true,
+  "transactionalSave": true
+}

@@ -1,0 +1,23 @@
+{
+  "fields": {
+    "name": {"type":"varchar","required":true},
+    "workPackage": {"type":"link","required":true},
+    "status": {"type":"enum","options":["Active","Completed","Abandoned"],"default":"Active","index":true},
+    "startedAt": {"type":"datetime","required":true},
+    "endedAt": {"type":"datetime"},
+    "lastCheckpointAt": {"type":"datetime","required":true},
+    "attendeeIds": {"type":"jsonArray","required":true},
+    "earlyCheckIn": {"type":"bool","default":false},
+    "clientActionId": {"type":"varchar","required":true,"maxLength":64,"index":true},
+    "revision": {"type":"int","default":1,"readOnly":true}
+  },
+  "links": {
+    "workPackage": {"type":"belongsTo","entity":"ElevateRmWorkPackage","foreign":"sessions"}
+  },
+  "indexes": {
+    "packageStatus":{"columns":["workPackageId","status"]},
+    "uniqueAction":{"columns":["clientActionId"],"unique":true}
+  },
+  "optimisticConcurrencyControl": true,
+  "transactionalSave": true
+}

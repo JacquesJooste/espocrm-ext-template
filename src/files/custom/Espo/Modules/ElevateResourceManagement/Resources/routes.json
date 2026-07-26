@@ -1,0 +1,78 @@
+[
+    {
+        "route": "/ElevateResourceManagement/context/:entityType/:id",
+        "method": "get",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "context"}
+    },
+    {
+        "route": "/ElevateResourceManagement/context-bulk",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "contextBulk"}
+    },
+    {
+        "route": "/ElevateResourceManagement/packages",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "createPackage"}
+    },
+    {
+        "route": "/ElevateResourceManagement/scheduled-blocks/:id",
+        "method": "put",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "updateScheduledBlock"}
+    },
+    {
+        "route": "/ElevateResourceManagement/sessions/report-in",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "reportIn"}
+    },
+    {
+        "route": "/ElevateResourceManagement/sessions/:id/milestone",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "milestone"}
+    },
+    {
+        "route": "/ElevateResourceManagement/sessions/:id/finish",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "finish"}
+    },
+    {
+        "route": "/ElevateResourceManagement/time-entries/manual",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "manualEntry"}
+    },
+    {
+        "route": "/ElevateResourceManagement/capacity",
+        "method": "get",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "capacity"}
+    },
+    {
+        "route": "/ElevateResourceManagement/reports",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "report"}
+    },
+    {
+        "route": "/ElevateResourceManagement/billing/:id/export/:format",
+        "method": "get",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\ExportBilling"
+    },
+    {
+        "route": "/ElevateResourceManagement/reports/export/csv",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\ExportReportCsv"
+    },
+    {
+        "route": "/ElevateResourceManagement/billing/:id/:billingAction",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "billing"}
+    }
+]

@@ -1,11 +1,14 @@
 {
-  "name": "espocrm-ext-{@nameHyphen}",
-  "version": "0.0.1",
-  "description": "",
+  "name": "espocrm-ext-elevate-resource-management",
+  "version": "0.1.5",
+  "description": "Time capture, capacity planning, reporting and billing readiness for EspoCRM 10.",
   "scripts": {
-    "sa": "vendor/bin/phpstan",
-    "unit-tests": "vendor/bin/phpunit",
-    "integration-tests": "node build --copy && node build --composer-install && cd site && php vendor/bin/phpunit tests/integration/Espo/Modules/{@name}",
+    "sa": "php vendor/bin/phpstan --memory-limit=512M",
+    "unit-tests": "php vendor/bin/phpunit",
+    "test": "php vendor/bin/phpunit",
+    "validate": "node tools/validate.mjs",
+    "dist": "node tools/validate.mjs && node build --extension && node tools/finalize-dist.mjs",
+    "integration-tests": "node build --copy && node build --composer-install && cd site && php vendor/bin/phpunit tests/integration/Espo/Modules/ElevateResourceManagement",
     "copy": "node build --copy",
     "composer-install": "node build --composer-install",
     "sync": "node build --copy && node build --composer-install",
@@ -16,10 +19,18 @@
     "prepare-test": "node build --prepare-test"
   },
   "type": "module",
-  "author": "{@author}",
+  "author": "Elevate",
+  "license": "AGPL-3.0-only",
   "dependencies": {
+    "chart.js": "4.5.1",
     "espo-extension-tools": "github:espocrm/extension-tools#0.4.5",
-    "fs-extra": "^9.0.0"
+    "frappe-gantt": "1.2.2",
+    "fs-extra": "^9.0.0",
+    "fullcalendar": "7.0.0",
+    "vis-timeline": "8.4.1"
+  },
+  "devDependencies": {
+    "rollup": "4.50.1"
   },
   "engines": {
     "npm": ">=8",

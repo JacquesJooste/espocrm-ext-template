@@ -1,0 +1,32 @@
+{
+  "fields": {
+    "name": {"type":"varchar","required":true,"maxLength":150},
+    "mode": {"type":"enum","options":["Standard","Project"],"default":"Standard","required":true},
+    "status": {"type":"enum","options":["Active","Archived"],"default":"Active","required":true,"displayAsLabel":true},
+    "targetEntityType": {"type":"varchar","required":true,"maxLength":100,"index":true},
+    "eligibilityCriteria": {"type":"jsonArray","default":[]},
+    "identifierField": {"type":"varchar","required":true,"default":"name"},
+    "nameField": {"type":"varchar","required":true,"default":"name"},
+    "statusField": {"type":"varchar","required":true,"default":"status"},
+    "resourceField": {"type":"varchar","required":true,"default":"assignedUser"},
+    "accountField": {"type":"varchar"},
+    "contactField": {"type":"varchar"},
+    "inProgressStatus": {"type":"varchar","required":true},
+    "completedStatusList": {"type":"jsonArray","default":[]},
+    "addTimeLogsTargetStatus": {"type":"varchar"},
+    "readyForBillingTargetStatus": {"type":"varchar"},
+    "invoicedTargetStatus": {"type":"varchar"},
+    "defaultWorkBlockIds": {"type":"jsonArray","default":[]},
+    "showStreamEntries": {"type":"bool","default":false},
+    "capacityConflictMode": {"type":"enum","options":["Warn","Block"],"default":"Warn"},
+    "outsideHoursMode": {"type":"enum","options":["Warn","Block"],"default":"Warn"},
+    "revision": {"type":"int","default":1,"readOnly":true}
+  },
+  "indexes": {
+    "targetStatus":{"columns":["targetEntityType","status"]},
+    "instanceName":{"columns":["name"]}
+  },
+  "optimisticConcurrencyControl": true,
+  "transactionalSave": true,
+  "collection": {"orderBy":"name","order":"asc"}
+}

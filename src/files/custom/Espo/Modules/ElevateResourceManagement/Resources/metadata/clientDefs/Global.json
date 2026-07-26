@@ -1,0 +1,12 @@
+{
+  "viewSetupHandlers": {
+    "record/detail": [
+      "__APPEND__",
+      "elevate-resource-management:handlers/target-controls"
+    ],
+    "list": [
+      "__APPEND__",
+      "elevate-resource-management:handlers/target-list"
+    ]
+  }
+}

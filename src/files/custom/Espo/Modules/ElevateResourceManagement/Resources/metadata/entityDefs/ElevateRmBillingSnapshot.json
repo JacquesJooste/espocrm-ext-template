@@ -1,0 +1,22 @@
+{
+  "fields": {
+    "name": {"type":"varchar","required":true},
+    "workPackage": {"type":"link","required":true},
+    "version": {"type":"int","required":true},
+    "status": {"type":"enum","options":["Current","Superseded"],"default":"Current","index":true},
+    "snapshotData": {"type":"jsonObject","required":true},
+    "checksum": {"type":"varchar","required":true,"maxLength":64},
+    "markedBy": {"type":"link","required":true},
+    "markedAt": {"type":"datetime","required":true}
+  },
+  "links": {
+    "workPackage": {"type":"belongsTo","entity":"ElevateRmWorkPackage","foreign":"billingSnapshots"},
+    "markedBy": {"type":"belongsTo","entity":"User"}
+  },
+  "indexes": {
+    "packageVersion":{"columns":["workPackageId","version"],"unique":true},
+    "packageStatus":{"columns":["workPackageId","status"]}
+  },
+  "optimisticConcurrencyControl": true,
+  "transactionalSave": true
+}

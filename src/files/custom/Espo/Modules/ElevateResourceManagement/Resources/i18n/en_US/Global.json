@@ -1,0 +1,26 @@
+{
+  "scopeNames": {
+    "ElevateResourceManagement": "Time Management",
+    "ElevateRmSettings": "Resource Management Settings",
+    "ElevateRmInstance": "Time Logging Instance",
+    "ElevateRmWorkBlockTemplate": "Work Block",
+    "ElevateRmWorkPackage": "Work Package",
+    "ElevateRmScheduledBlock": "Scheduled Work Block",
+    "ElevateRmWorkSession": "Work Session",
+    "ElevateRmTimeEntry": "Time Entry",
+    "ElevateRmCapacityProfile": "Capacity Profile",
+    "ElevateRmBillingSnapshot": "Billing Snapshot"
+  },
+  "scopeNamesPlural": {
+    "ElevateResourceManagement": "Time Management",
+    "ElevateRmSettings": "Resource Management Settings",
+    "ElevateRmInstance": "Time Logging Instances",
+    "ElevateRmWorkBlockTemplate": "Work Blocks",
+    "ElevateRmWorkPackage": "Work Packages",
+    "ElevateRmScheduledBlock": "Scheduled Work Blocks",
+    "ElevateRmWorkSession": "Work Sessions",
+    "ElevateRmTimeEntry": "Time Entries",
+    "ElevateRmCapacityProfile": "Capacity Profiles",
+    "ElevateRmBillingSnapshot": "Billing Snapshots"
+  }
+}

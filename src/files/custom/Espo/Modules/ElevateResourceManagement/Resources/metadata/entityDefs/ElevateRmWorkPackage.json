@@ -1,0 +1,37 @@
+{
+  "fields": {
+    "name": {"type":"varchar","required":true,"maxLength":255},
+    "instance": {"type":"link","required":true},
+    "targetType": {"type":"varchar","required":true,"maxLength":100,"index":true},
+    "targetId": {"type":"varchar","required":true,"maxLength":64,"index":true},
+    "targetIdentifier": {"type":"varchar","maxLength":255},
+    "targetName": {"type":"varchar","maxLength":255},
+    "accountIdSnapshot": {"type":"varchar","maxLength":64,"index":true},
+    "accountNameSnapshot": {"type":"varchar","maxLength":255},
+    "contactIdSnapshot": {"type":"varchar","maxLength":64,"index":true},
+    "contactNameSnapshot": {"type":"varchar","maxLength":255},
+    "scheduledStart": {"type":"datetime"},
+    "plannedStart": {"type":"datetime"},
+    "plannedEnd": {"type":"datetime"},
+    "totalEstimateSeconds": {"type":"int","default":0,"readOnly":true},
+    "completionPercent": {"type":"float","default":0,"readOnly":true},
+    "lifecycle": {"type":"enum","options":["Open","ClosedAddTimeLogs","ClosedReadyForBilling","ClosedInvoiced"],"default":"Open","displayAsLabel":true,"index":true},
+    "attentionFlags": {"type":"jsonArray","default":[]},
+    "revision": {"type":"int","default":1,"readOnly":true}
+  },
+  "links": {
+    "instance": {"type":"belongsTo","entity":"ElevateRmInstance"},
+    "scheduledBlocks": {"type":"hasMany","entity":"ElevateRmScheduledBlock","foreign":"workPackage"},
+    "sessions": {"type":"hasMany","entity":"ElevateRmWorkSession","foreign":"workPackage"},
+    "timeEntries": {"type":"hasMany","entity":"ElevateRmTimeEntry","foreign":"workPackage"},
+    "billingSnapshots": {"type":"hasMany","entity":"ElevateRmBillingSnapshot","foreign":"workPackage"}
+  },
+  "indexes": {
+    "activeTargetPackage":{"columns":["instanceId","targetType","targetId","deleted"],"unique":true},
+    "lifecycleTarget":{"columns":["lifecycle","targetType"]},
+    "scheduleRange":{"columns":["plannedStart","plannedEnd"]}
+  },
+  "deleteId": true,
+  "optimisticConcurrencyControl": true,
+  "transactionalSave": true
+}

@@ -1,0 +1,36 @@
+{
+  "fields": {
+    "name": {"type":"varchar","required":true},
+    "workPackage": {"type":"link","required":true},
+    "scheduledBlock": {"type":"link","required":true},
+    "workSession": {"type":"link"},
+    "dateStart": {"type":"datetime","required":true,"index":true},
+    "dateEnd": {"type":"datetime","required":true,"after":"dateStart","index":true},
+    "elapsedSeconds": {"type":"int","required":true,"min":1,"readOnly":true},
+    "labourSeconds": {"type":"int","required":true,"min":1,"readOnly":true},
+    "attendeeIds": {"type":"jsonArray","required":true},
+    "attendeeNames": {"type":"jsonArray","default":[]},
+    "entryMode": {"type":"enum","options":["Interactive","Manual"],"required":true},
+    "workNote": {"type":"text"},
+    "userFlagged": {"type":"bool","default":false},
+    "flagSources": {"type":"jsonArray","default":[]},
+    "dragReason": {"type":"enum","options":["","InaccurateEstimate","Incident","Custom"],"default":""},
+    "billingLocked": {"type":"bool","default":false,"index":true},
+    "billingSnapshot": {"type":"link"},
+    "clientActionId": {"type":"varchar","maxLength":64,"index":true}
+  },
+  "links": {
+    "workPackage": {"type":"belongsTo","entity":"ElevateRmWorkPackage","foreign":"timeEntries"},
+    "scheduledBlock": {"type":"belongsTo","entity":"ElevateRmScheduledBlock"},
+    "workSession": {"type":"belongsTo","entity":"ElevateRmWorkSession"},
+    "billingSnapshot": {"type":"belongsTo","entity":"ElevateRmBillingSnapshot"}
+  },
+  "indexes": {
+    "packageDates":{"columns":["workPackageId","dateStart","dateEnd"]},
+    "blockDates":{"columns":["scheduledBlockId","dateStart"]},
+    "uniqueAction":{"columns":["clientActionId","deleted"],"unique":true}
+  },
+  "deleteId": true,
+  "optimisticConcurrencyControl": true,
+  "transactionalSave": true
+}

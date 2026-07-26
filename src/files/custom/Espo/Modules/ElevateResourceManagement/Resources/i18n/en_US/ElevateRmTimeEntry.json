@@ -1,0 +1,8 @@
+{
+  "fields": {
+    "dateStart":"Start Time","dateEnd":"End Time","elapsedSeconds":"Elapsed Seconds",
+    "labourSeconds":"Labour Seconds","attendeeIds":"Attending Users","entryMode":"Entry Mode",
+    "workNote":"Work Note","userFlagged":"High Visibility","flagSources":"Flag Reasons",
+    "dragReason":"Reason for Drag","billingLocked":"Billing Locked"
+  }
+}

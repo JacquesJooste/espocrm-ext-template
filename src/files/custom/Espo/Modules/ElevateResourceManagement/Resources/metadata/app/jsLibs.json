@@ -1,0 +1,5 @@
+{
+  "elevate-rm-chart": {"path":"client/custom/modules/elevate-resource-management/lib/chart.umd.js"},
+  "elevate-rm-gantt": {"path":"client/custom/modules/elevate-resource-management/lib/frappe-gantt.umd.js"},
+  "elevate-rm-timeline": {"path":"client/custom/modules/elevate-resource-management/lib/vis-timeline-graph2d.min.js"}
+}

@@ -1,12 +1,14 @@
 {
-    "name": "espocrm/ext-{@nameHyphen}",
+    "name": "elevate/espocrm-resource-management",
+    "description": "Time capture, capacity planning, reporting and billing readiness for EspoCRM 10.",
+    "license": "AGPL-3.0-only",
     "require": {
-        "php": ">=8.3"
+        "php": ">=8.3 <8.6"
     },
     "autoload-dev": {
         "psr-4": {
-            "Espo\\Modules\\{@name}\\": "src/files/custom/Espo/Modules/{@name}",
-            "tests\\unit\\Espo\\Modules\\{@name}\\": "tests/unit/Espo/Modules/{@name}"
+            "Espo\\Modules\\ElevateResourceManagement\\": "src/files/custom/Espo/Modules/ElevateResourceManagement",
+            "tests\\unit\\Espo\\Modules\\ElevateResourceManagement\\": "tests/unit/Espo/Modules/ElevateResourceManagement"
         }
     },
     "require-dev": {

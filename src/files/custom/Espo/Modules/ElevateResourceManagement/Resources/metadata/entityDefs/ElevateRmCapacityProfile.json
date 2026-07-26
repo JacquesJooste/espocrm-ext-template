@@ -1,0 +1,18 @@
+{
+  "fields": {
+    "name": {"type":"varchar","required":true},
+    "instance": {"type":"link","required":true},
+    "user": {"type":"link","required":true},
+    "weeklyCapacitySeconds": {"type":"int","min":3600},
+    "reservePercent": {"type":"float","default":20,"min":0,"max":95},
+    "warningPercent": {"type":"float","default":85,"min":1,"max":100},
+    "namedReserves": {"type":"jsonArray","default":[]}
+  },
+  "links": {
+    "instance": {"type":"belongsTo","entity":"ElevateRmInstance"},
+    "user": {"type":"belongsTo","entity":"User"}
+  },
+  "indexes": {"uniqueInstanceUser":{"columns":["instanceId","userId"],"unique":true}},
+  "optimisticConcurrencyControl": true,
+  "transactionalSave": true
+}

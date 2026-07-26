@@ -1,0 +1,6 @@
+{
+  "fields": {
+    "operationsManager":"Operations Manager","billingAdministrator":"Billing Administrator",
+    "autoMarkInvoicedOnExport":"Automatically Mark Invoiced After Successful Export"
+  }
+}

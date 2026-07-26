@@ -1,14 +1,16 @@
 {
-    "module": "{@name}",
-    "name": "{@nameLabel}",
-    "description": "{@description}",
-    "author": "{@author}",
-    "bundled": {@bundled},
+    "module": "ElevateResourceManagement",
+    "name": "Elevate Resource Management",
+    "description": "Focused work planning, time capture, capacity management, reporting and billing readiness.",
+    "author": "Elevate",
+    "bundled": true,
     "acceptableVersions": [
-        ">=9.3.0"
+        ">=10.0.0 <11.0.0"
     ],
     "php": [
-        ">=8.3"
+        ">=8.3 <8.6"
     ],
-    "scripts": []
+    "scripts": [
+        "node tools/copy-vendor.mjs"
+    ]
 }

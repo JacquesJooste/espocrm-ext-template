@@ -1,0 +1,10 @@
+{
+  "links": {
+    "elevateRmScheduledBlocks": {
+      "type": "hasMany",
+      "entity": "ElevateRmScheduledBlock",
+      "foreign": "users",
+      "relationName": "elevateRmScheduledBlockUser"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "ElevateResourceManagement": {
+    "params": {
+      "controller": "ElevateResourceManagement",
+      "action": "index"
+    },
+    "order": 10
+  },
+  "ElevateResourceManagement/:tab": {
+    "params": {
+      "controller": "ElevateResourceManagement",
+      "action": "index"
+    },
+    "order": 11
+  }
+}

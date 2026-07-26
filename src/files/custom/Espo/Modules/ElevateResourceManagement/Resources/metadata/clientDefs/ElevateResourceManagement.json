@@ -1,0 +1,5 @@
+{
+  "controller": "elevate-resource-management:controllers/workspace",
+  "iconClass": "fas fa-business-time",
+  "color": "#4f6bed"
+}

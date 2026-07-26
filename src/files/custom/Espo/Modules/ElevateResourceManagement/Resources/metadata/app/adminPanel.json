@@ -1,0 +1,14 @@
+{
+  "elevateResourceManagement": {
+    "label": "Elevate Resource Management",
+    "itemList": [
+      {
+        "url": "#ElevateResourceManagement",
+        "label": "Time Management",
+        "iconClass": "fas fa-business-time",
+        "description": "elevateResourceManagement"
+      }
+    ],
+    "order": 23
+  }
+}

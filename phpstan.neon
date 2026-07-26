@@ -3,8 +3,7 @@ parameters:
     inferPrivatePropertyTypeFromConstructor: true
     treatPhpDocTypesAsCertain: false
     paths:
-        - src/files/custom
+        - src/files/custom/Espo/Modules/ElevateResourceManagement
+    bootstrapFiles:
+        - site/vendor/autoload.php
     reportUnmatchedIgnoredErrors: false
-    scanDirectories:
-        - site/application
-        - site/vendor

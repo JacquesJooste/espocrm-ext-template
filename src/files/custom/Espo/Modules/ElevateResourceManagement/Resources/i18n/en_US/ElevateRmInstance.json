@@ -1,0 +1,16 @@
+{
+  "fields": {
+    "mode":"Instance Type","targetEntityType":"Target Entity Type","eligibilityCriteria":"Eligibility Criteria",
+    "identifierField":"Identifier Field","nameField":"Name Field","statusField":"Status Field",
+    "resourceField":"Resource Field","accountField":"Account Field","contactField":"Contact Field",
+    "inProgressStatus":"In Progress Status","completedStatusList":"Completed Statuses",
+    "addTimeLogsTargetStatus":"Add Time Logs Target Status","readyForBillingTargetStatus":"Ready for Billing Target Status",
+    "invoicedTargetStatus":"Invoiced Target Status","defaultWorkBlockIds":"Default Work Blocks",
+    "showStreamEntries":"Show Added Time Entries in Stream","capacityConflictMode":"Capacity Conflict Policy",
+    "outsideHoursMode":"Outside Hours Policy"
+  },
+  "tooltips": {
+    "targetEntityType":"The existing queue or event-based entity this instance measures. No fields are added to it.",
+    "eligibilityCriteria":"AND-combined safe rules used to decide which target records receive time controls."
+  }
+}

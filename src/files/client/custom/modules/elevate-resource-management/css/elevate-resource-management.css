@@ -1,0 +1,19 @@
+.elevate-rm-target-controls { margin-bottom: 16px; border-left: 4px solid #4f6bed; }
+.elevate-rm-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.elevate-rm-row-launcher { margin-left: 6px; }
+.elevate-rm-workspace .page-header { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+.elevate-rm-instance-picker { display: flex; align-items: end; gap: 8px; }
+.elevate-rm-instance-picker label { align-self: center; margin: 0; }
+.elevate-rm-instance-picker select { min-width: 230px; }
+.elevate-rm-tabs { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+.elevate-rm-kpis { font-size: 16px; margin-bottom: 16px; }
+.elevate-rm-content { min-height: 240px; overflow-x: auto; }
+.elevate-rm-capacity-chart { height: 250px; margin-bottom: 18px; }
+.elevate-rm-gantt { overflow-x: auto; margin-bottom: 18px; min-height: 180px; }
+.elevate-rm-roadmap { border-left: 3px solid #4f6bed; padding-left: 14px; margin: 18px 0; }
+@media (max-width: 767px) {
+  .elevate-rm-target-controls .btn { flex: 1 1 calc(50% - 8px); min-height: 44px; }
+  .elevate-rm-workspace .page-header, .elevate-rm-instance-picker { align-items: stretch; flex-direction: column; }
+  .elevate-rm-instance-picker select { min-width: 0; width: 100%; }
+  .elevate-rm-tabs .btn { flex: 1 1 calc(50% - 5px); }
+}
