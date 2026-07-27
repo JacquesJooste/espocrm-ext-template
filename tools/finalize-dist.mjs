@@ -16,6 +16,11 @@ const requiredBundleModules = [
     'modules/elevate-resource-management/handlers/target-list-launcher',
     'modules/elevate-resource-management/handlers/target-controls',
     'modules/elevate-resource-management/views/time-action-modal',
+    'modules/elevate-resource-management/views/fields/json-array',
+    'modules/elevate-resource-management/views/fields/target-entity-type',
+    'modules/elevate-resource-management/views/fields/target-field',
+    'modules/elevate-resource-management/views/fields/target-status',
+    'modules/elevate-resource-management/views/fields/target-status-list',
     'modules/elevate-resource-management/views/workspace',
 ];
 

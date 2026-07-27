@@ -11,15 +11,17 @@ The first active administrator becomes the provisional Operations Manager and Bi
 Create Work Block templates first, then create an instance:
 
 1. Choose Standard or Project.
-2. Enter the exact Espo entity type of the existing queue.
-3. Map its identifier, name, status, assigned-user, Account, and Contact fields.
-4. Select existing in-progress and completed status values.
+2. Select the existing queue or task entity by its translated Espo label. The instance name defaults to that label and can be changed.
+3. Select its identifier, display name, status, resource, Account, and Contact mappings. Each selector shows only compatible fields and includes the internal field name in parentheses for troubleshooting.
+4. Select existing in-progress and completed values populated from the chosen status field.
 5. Optionally select existing billing-state status values.
 6. Add safe eligibility rules and default Work Block IDs.
 7. Choose Warn or Block for schedule conflicts and outside-hours planning.
 8. Validate with non-production records before enabling broad criteria.
 
-The extension does not create fields or enum values on the target.
+Changing the target entity or status field refreshes the dependent choices and clears mappings that are no longer valid. Eligibility rules and default Work Block IDs remain advanced JSON settings because they represent structured rules and ordered record references rather than target metadata.
+
+The extension does not create fields or enum values on the target. The server validates every selected mapping again when the instance is saved.
 
 ## Role matrix
 

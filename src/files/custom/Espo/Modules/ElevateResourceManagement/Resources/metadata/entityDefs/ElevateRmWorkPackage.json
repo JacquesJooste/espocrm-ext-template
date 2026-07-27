@@ -16,7 +16,7 @@
     "totalEstimateSeconds": {"type":"int","default":0,"readOnly":true},
     "completionPercent": {"type":"float","default":0,"readOnly":true},
     "lifecycle": {"type":"enum","options":["Open","ClosedAddTimeLogs","ClosedReadyForBilling","ClosedInvoiced"],"default":"Open","displayAsLabel":true,"index":true},
-    "attentionFlags": {"type":"jsonArray","default":[]},
+    "attentionFlags": {"type":"jsonArray","default":[],"view":"elevate-resource-management:views/fields/json-array"},
     "revision": {"type":"int","default":1,"readOnly":true}
   },
   "links": {

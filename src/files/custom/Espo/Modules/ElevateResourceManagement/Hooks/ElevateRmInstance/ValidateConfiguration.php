@@ -11,7 +11,7 @@ use Espo\ORM\Repository\Option\SaveOptions;
 final class ValidateConfiguration implements BeforeSave
 {
     private const OPERATORS = ['equals', 'notEquals', 'in', 'isEmpty', 'isNotEmpty'];
-    private const SCALAR_TYPES = ['varchar', 'text', 'enum', 'multiEnum', 'int', 'float', 'bool', 'date', 'datetime', 'datetimeOptional'];
+    private const SCALAR_TYPES = ['varchar', 'text', 'enum', 'multiEnum', 'int', 'float', 'autoincrement', 'bool', 'date', 'datetime', 'datetimeOptional'];
 
     public function __construct(private Metadata $metadata) {}
 

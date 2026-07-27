@@ -8,7 +8,7 @@
     "workPackage": {"type":"link","required":true},
     "template": {"type":"link"},
     "instance": {"type":"link","required":true},
-    "activitiesSnapshot": {"type":"jsonArray","default":[]},
+    "activitiesSnapshot": {"type":"jsonArray","default":[],"view":"elevate-resource-management:views/fields/json-array"},
     "estimatedSeconds": {"type":"int","required":true,"min":60},
     "sequence": {"type":"int","default":0},
     "milestoneKind": {"type":"enum","options":["Normal","Deadline","Achievement","Delivery"],"default":"Normal"},

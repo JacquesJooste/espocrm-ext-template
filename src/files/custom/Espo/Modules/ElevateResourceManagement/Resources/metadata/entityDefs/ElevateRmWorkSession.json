@@ -6,7 +6,7 @@
     "startedAt": {"type":"datetime","required":true},
     "endedAt": {"type":"datetime"},
     "lastCheckpointAt": {"type":"datetime","required":true},
-    "attendeeIds": {"type":"jsonArray","required":true},
+    "attendeeIds": {"type":"jsonArray","required":true,"view":"elevate-resource-management:views/fields/json-array"},
     "earlyCheckIn": {"type":"bool","default":false},
     "clientActionId": {"type":"varchar","required":true,"maxLength":64,"index":true},
     "revision": {"type":"int","default":1,"readOnly":true}

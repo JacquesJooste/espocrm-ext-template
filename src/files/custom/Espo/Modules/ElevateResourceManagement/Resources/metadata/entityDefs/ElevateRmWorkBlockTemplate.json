@@ -2,7 +2,7 @@
   "fields": {
     "name": {"type":"varchar","required":true,"maxLength":180},
     "instance": {"type":"link","required":true},
-    "activities": {"type":"jsonArray","default":[]},
+    "activities": {"type":"jsonArray","default":[],"view":"elevate-resource-management:views/fields/json-array"},
     "estimatedSeconds": {"type":"int","required":true,"min":60},
     "active": {"type":"bool","default":true},
     "defaultOrder": {"type":"int","default":0},

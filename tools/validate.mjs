@@ -69,6 +69,49 @@ for (const file of (await walk(clientModuleRoot)).filter(file => file.endsWith('
 
 const moduleRoot =
     path.join(root, 'src/files/custom/Espo/Modules/ElevateResourceManagement');
+const entityDefsRoot = path.join(moduleRoot, 'Resources/metadata/entityDefs');
+const jsonArrayView = 'elevate-resource-management:views/fields/json-array';
+const supportedJsonArrayViews = [
+    jsonArrayView,
+    'elevate-resource-management:views/fields/target-status-list',
+];
+for (const file of (await walk(entityDefsRoot)).filter(file => file.endsWith('.json'))) {
+    const definition = JSON.parse(await readFile(file, 'utf8'));
+
+    for (const [field, fieldDefinition] of Object.entries(definition.fields ?? {})) {
+        if (fieldDefinition.type === 'jsonArray' &&
+            !supportedJsonArrayViews.includes(fieldDefinition.view)) {
+            failures.push(
+                `${path.relative(root, file)}: jsonArray field '${field}' must use a supported extension view`
+            );
+        }
+    }
+}
+
+const instanceDefsPath = path.join(entityDefsRoot, 'ElevateRmInstance.json');
+const instanceDefs = JSON.parse(await readFile(instanceDefsPath, 'utf8'));
+const expectedInstanceViews = {
+    targetEntityType: 'elevate-resource-management:views/fields/target-entity-type',
+    identifierField: 'elevate-resource-management:views/fields/target-field',
+    nameField: 'elevate-resource-management:views/fields/target-field',
+    statusField: 'elevate-resource-management:views/fields/target-field',
+    resourceField: 'elevate-resource-management:views/fields/target-field',
+    accountField: 'elevate-resource-management:views/fields/target-field',
+    contactField: 'elevate-resource-management:views/fields/target-field',
+    inProgressStatus: 'elevate-resource-management:views/fields/target-status',
+    completedStatusList: 'elevate-resource-management:views/fields/target-status-list',
+    addTimeLogsTargetStatus: 'elevate-resource-management:views/fields/target-status',
+    readyForBillingTargetStatus: 'elevate-resource-management:views/fields/target-status',
+    invoicedTargetStatus: 'elevate-resource-management:views/fields/target-status',
+};
+for (const [field, view] of Object.entries(expectedInstanceViews)) {
+    if (instanceDefs.fields?.[field]?.view !== view) {
+        failures.push(
+            `${path.relative(root, instanceDefsPath)}: guided Instance field '${field}' must use '${view}'`
+        );
+    }
+}
+
 const scopeRoot = path.join(moduleRoot, 'Resources/metadata/scopes');
 for (const file of (await walk(scopeRoot)).filter(file => file.endsWith('.json'))) {
     const scope = path.basename(file, '.json');

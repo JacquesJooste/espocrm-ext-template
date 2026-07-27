@@ -11,6 +11,15 @@
   },
   "tooltips": {
     "targetEntityType":"The existing queue or event-based entity this instance measures. No fields are added to it.",
-    "eligibilityCriteria":"AND-combined safe rules used to decide which target records receive time controls."
+    "identifierField":"Select the target field users recognize as the ticket, task, or work reference.",
+    "nameField":"Select the target field used as the human-readable work title.",
+    "statusField":"Select the target entity's enum status field. Workflow status choices are populated from it.",
+    "resourceField":"Select an existing User or Users relationship representing assigned resources.",
+    "accountField":"Optionally select an existing Account relationship for reporting snapshots.",
+    "contactField":"Optionally select an existing Contact relationship for reporting snapshots.",
+    "inProgressStatus":"The existing target status applied when work is reported in.",
+    "completedStatusList":"Existing target statuses treated as completed and ready for time-entry reconciliation.",
+    "eligibilityCriteria":"Optional advanced AND-combined rules. Enter a JSON array of objects using field, operator, and value keys.",
+    "defaultWorkBlockIds":"Optional advanced ordered list of reusable Work Block IDs. Configure after templates exist."
   }
 }
