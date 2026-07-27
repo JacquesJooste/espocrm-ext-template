@@ -23,13 +23,42 @@ final class Endpoint implements Action
 
         $body = (array) $request->getParsedBody();
         $result = match ($operation) {
+            'settings' => $this->service->settings(),
+            'permissions' => $this->service->permissions(),
+            'updateSettings' => $this->service->updateSettings($body),
+            'myWork' => $this->service->myWork(),
+            'workBlockComposition' => $this->service->workBlockComposition(
+                $this->routeString($request, 'id')
+            ),
+            'createWorkBlock' => $this->service->createWorkBlock($body),
+            'updateWorkBlockDefinition' => $this->service->updateWorkBlockDefinition(
+                $this->routeString($request, 'id'),
+                $body
+            ),
             'context' => $this->service->context(
                 $this->routeString($request, 'entityType'),
                 $this->routeString($request, 'id')
             ),
             'contextBulk' => $this->service->contextBulk($body),
+            'rollup' => $this->service->rollup(
+                $this->routeString($request, 'entityType'),
+                $this->routeString($request, 'id')
+            ),
             'createPackage' => $this->service->createPackage($body),
+            'attachWorkBlocks' => $this->service->attachWorkBlocks(
+                $this->routeString($request, 'id'),
+                $body
+            ),
             'updateScheduledBlock' => $this->service->updateScheduledBlock(
+                $this->routeString($request, 'id'),
+                $body
+            ),
+            'rescheduleRemaining' => $this->service->rescheduleRemaining(
+                $this->routeString($request, 'id'),
+                $body
+            ),
+            'startTimer' => $this->service->startTimer($body),
+            'stopTimer' => $this->service->stopTimer(
                 $this->routeString($request, 'id'),
                 $body
             ),
@@ -43,6 +72,9 @@ final class Endpoint implements Action
                 'to' => $request->getQueryParam('to'),
             ]),
             'report' => $this->service->report($body),
+            'billingQueue' => $this->service->billingQueue(
+                $this->routeString($request, 'id')
+            ),
             'billing' => $this->service->billing(
                 $this->routeString($request, 'id'),
                 $this->routeString($request, 'billingAction'),

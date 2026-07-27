@@ -5,7 +5,7 @@
     "billingAdministrator": {"type":"link","required":true},
     "autoMarkInvoicedOnExport": {"type":"bool","default":false},
     "installProvenance": {"type":"jsonObject","utility":true},
-    "schemaVersion": {"type":"int","default":1,"readOnly":true}
+    "schemaVersion": {"type":"int","default":2,"readOnly":true}
   },
   "links": {
     "operationsManager": {"type":"belongsTo","entity":"User"},

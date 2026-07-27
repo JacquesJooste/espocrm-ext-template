@@ -1,1 +1,7 @@
-[{"rows":[[{"name":"name"},{"name":"status"}],[{"name":"mode"},{"name":"targetEntityType"}],[{"name":"identifierField"},{"name":"nameField"}],[{"name":"statusField"},{"name":"resourceField"}],[{"name":"accountField"},{"name":"contactField"}],[{"name":"inProgressStatus"},{"name":"completedStatusList"}],[{"name":"addTimeLogsTargetStatus"},{"name":"readyForBillingTargetStatus"}],[{"name":"invoicedTargetStatus"},{"name":"showStreamEntries"}],[{"name":"capacityConflictMode"},{"name":"outsideHoursMode"}],[{"name":"eligibilityCriteria"}],[{"name":"defaultWorkBlockIds"}]]}]
+[
+  {"label":"Basics","rows":[[{"name":"name"},{"name":"status"}],[{"name":"mode"},{"name":"targetEntityType"}]]},
+  {"label":"Target Mapping","rows":[[{"name":"identifierField"},{"name":"nameField"}],[{"name":"statusField"},{"name":"resourceField"}],[{"name":"accountField"},{"name":"contactField"}]]},
+  {"label":"Workflow Statuses","rows":[[{"name":"inProgressStatus"},{"name":"completedStatusList"}],[{"name":"addTimeLogsTargetStatus"},{"name":"readyForBillingTargetStatus"}],[{"name":"invoicedTargetStatus"},{"name":"showStreamEntries"}]]},
+  {"label":"Scheduling Policies","rows":[[{"name":"capacityConflictMode"},{"name":"outsideHoursMode"}]]},
+  {"label":"Advanced Rules","rows":[[{"name":"eligibilityCriteria","fullWidth":true}],[{"name":"defaultWorkBlockIds","fullWidth":true}]]}
+]

@@ -5,6 +5,9 @@ import path from 'node:path';
 const root = process.cwd();
 const failures = [];
 const placeholder = /\{@[A-Za-z][A-Za-z0-9]*\}/;
+const moduleRoot =
+    path.join(root, 'src/files/custom/Espo/Modules/ElevateResourceManagement');
+const entityDefsRoot = path.join(moduleRoot, 'Resources/metadata/entityDefs');
 
 async function walk(directory) {
     const result = [];
@@ -35,9 +38,72 @@ for (const required of [
     'extension.json',
     'src/files/custom/Espo/Modules/ElevateResourceManagement/Resources/routes.json',
     'src/files/custom/Espo/Modules/ElevateResourceManagement/Resources/metadata/entityDefs/ElevateRmTimeEntry.json',
+    'src/files/custom/Espo/Modules/ElevateResourceManagement/Resources/metadata/entityDefs/ElevateRmWorkItem.json',
+    'src/files/custom/Espo/Modules/ElevateResourceManagement/Resources/metadata/entityDefs/ElevateRmWorkBlockItem.json',
+    'src/files/custom/Espo/Modules/ElevateResourceManagement/Resources/metadata/entityDefs/ElevateRmWorkBlockRun.json',
+    'src/files/custom/Espo/Modules/ElevateResourceManagement/Resources/metadata/entityDefs/ElevateRmWorkItemRun.json',
+    'src/files/custom/Espo/Modules/ElevateResourceManagement/Domain/LegacyMigration.php',
     'src/files/client/custom/modules/elevate-resource-management/src/views/workspace.js',
+    'src/scripts/BeforeInstall.php',
+    'src/scripts/AfterInstall.php',
 ]) {
     try { await readFile(path.join(root, required)); } catch { failures.push(`${required}: required file missing`); }
+}
+
+const routesPath =
+    'src/files/custom/Espo/Modules/ElevateResourceManagement/Resources/routes.json';
+const routes = JSON.parse(await readFile(path.join(root, routesPath), 'utf8'));
+for (const [method, route] of [
+    ['get', '/ElevateResourceManagement/settings'],
+    ['put', '/ElevateResourceManagement/settings'],
+    ['post', '/ElevateResourceManagement/work-blocks'],
+    ['post', '/ElevateResourceManagement/packages/:id/work-blocks'],
+    ['post', '/ElevateResourceManagement/timers/start'],
+    ['post', '/ElevateResourceManagement/timers/:id/stop'],
+    ['post', '/ElevateResourceManagement/scheduled-blocks/:id/reschedule-remaining'],
+]) {
+    if (!routes.some(item => item.method === method && item.route === route)) {
+        failures.push(`${routesPath}: missing ${method.toUpperCase()} ${route}`);
+    }
+}
+
+const scheduledDefsPath = path.join(entityDefsRoot, 'ElevateRmScheduledBlock.json');
+const scheduledDefs = JSON.parse(await readFile(scheduledDefsPath, 'utf8'));
+if (!scheduledDefs.fields?.createdAt || !scheduledDefs.fields?.modifiedAt) {
+    failures.push(
+        `${path.relative(root, scheduledDefsPath)}: calendar event requires createdAt and modifiedAt`
+    );
+}
+if (!scheduledDefs.fields?.assignedUsers || scheduledDefs.fields?.users) {
+    failures.push(
+        `${path.relative(root, scheduledDefsPath)}: calendar attendees must use assignedUsers`
+    );
+}
+if (scheduledDefs.links?.assignedUsers?.relationName !== 'elevateRmScheduledBlockUser') {
+    failures.push(
+        `${path.relative(root, scheduledDefsPath)}: assignedUsers must preserve the existing relation table`
+    );
+}
+
+const timeEntryDefsPath = path.join(entityDefsRoot, 'ElevateRmTimeEntry.json');
+const timeEntryDefs = JSON.parse(await readFile(timeEntryDefsPath, 'utf8'));
+for (const relation of ['workBlockRun', 'workItemRun', 'users']) {
+    if (!timeEntryDefs.fields?.[relation] || !timeEntryDefs.links?.[relation]) {
+        failures.push(
+            `${path.relative(root, timeEntryDefsPath)}: missing runtime relation '${relation}'`
+        );
+    }
+}
+
+const settingsClientDefsPath =
+    path.join(moduleRoot, 'Resources/metadata/clientDefs/ElevateRmSettings.json');
+const settingsClientDefs = JSON.parse(await readFile(settingsClientDefsPath, 'utf8'));
+for (const flag of ['createDisabled', 'editDisabled', 'removeDisabled']) {
+    if (settingsClientDefs[flag] !== true) {
+        failures.push(
+            `${path.relative(root, settingsClientDefsPath)}: '${flag}' must be true for singleton settings`
+        );
+    }
 }
 
 const clientMetadataPath =
@@ -67,13 +133,11 @@ for (const file of (await walk(clientModuleRoot)).filter(file => file.endsWith('
     }
 }
 
-const moduleRoot =
-    path.join(root, 'src/files/custom/Espo/Modules/ElevateResourceManagement');
-const entityDefsRoot = path.join(moduleRoot, 'Resources/metadata/entityDefs');
 const jsonArrayView = 'elevate-resource-management:views/fields/json-array';
 const supportedJsonArrayViews = [
     jsonArrayView,
     'elevate-resource-management:views/fields/target-status-list',
+    'elevate-resource-management:views/fields/default-work-blocks',
 ];
 for (const file of (await walk(entityDefsRoot)).filter(file => file.endsWith('.json'))) {
     const definition = JSON.parse(await readFile(file, 'utf8'));
@@ -104,10 +168,25 @@ const expectedInstanceViews = {
     readyForBillingTargetStatus: 'elevate-resource-management:views/fields/target-status',
     invoicedTargetStatus: 'elevate-resource-management:views/fields/target-status',
 };
+const expectedMappingKinds = {
+    identifierField: 'scalar',
+    nameField: 'scalar',
+    statusField: 'status',
+    resourceField: 'resource',
+    accountField: 'account',
+    contactField: 'contact',
+};
 for (const [field, view] of Object.entries(expectedInstanceViews)) {
     if (instanceDefs.fields?.[field]?.view !== view) {
         failures.push(
             `${path.relative(root, instanceDefsPath)}: guided Instance field '${field}' must use '${view}'`
+        );
+    }
+}
+for (const [field, mappingKind] of Object.entries(expectedMappingKinds)) {
+    if (instanceDefs.fields?.[field]?.mappingKind !== mappingKind) {
+        failures.push(
+            `${path.relative(root, instanceDefsPath)}: guided Instance field '${field}' must declare mappingKind '${mappingKind}'`
         );
     }
 }

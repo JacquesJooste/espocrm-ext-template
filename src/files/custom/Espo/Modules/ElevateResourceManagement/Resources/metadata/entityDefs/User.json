@@ -3,8 +3,14 @@
     "elevateRmScheduledBlocks": {
       "type": "hasMany",
       "entity": "ElevateRmScheduledBlock",
-      "foreign": "users",
+      "foreign": "assignedUsers",
       "relationName": "elevateRmScheduledBlockUser"
+    },
+    "elevateRmTimeEntries": {
+      "type": "hasMany",
+      "entity": "ElevateRmTimeEntry",
+      "foreign": "users",
+      "relationName": "elevateRmTimeEntryUser"
     }
   }
 }

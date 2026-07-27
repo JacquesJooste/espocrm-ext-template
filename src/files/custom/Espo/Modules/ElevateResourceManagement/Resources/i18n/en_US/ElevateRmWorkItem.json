@@ -1,0 +1,15 @@
+{
+  "fields": {
+    "name":"Item",
+    "description":"Description",
+    "defaultEstimateSeconds":"Default Estimated Time",
+    "active":"Active"
+  },
+  "labels": {
+    "Create ElevateRmWorkItem":"Create Work Item",
+    "Overview":"Overview"
+  },
+  "messages": {
+    "legacyEstimate":"This legacy estimate is not a 15-minute increment. It will be preserved until explicitly replaced."
+  }
+}

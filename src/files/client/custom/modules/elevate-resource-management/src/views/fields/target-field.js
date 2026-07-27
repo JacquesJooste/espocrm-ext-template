@@ -46,7 +46,9 @@ class TargetFieldView extends EnumFieldView {
             {};
         const fields = entityDefs.fields ?? {};
         const links = entityDefs.links ?? {};
-        const kind = this.params.mappingKind ?? 'scalar';
+        const kind = this.model.getFieldParam(this.name, 'mappingKind') ??
+            this.params.mappingKind ??
+            'scalar';
         const optional = ['account', 'contact'].includes(kind);
         const items = Object.entries(fields)
             .filter(([field, defs]) => this.isAllowed(field, defs, links, kind))
@@ -88,10 +90,15 @@ class TargetFieldView extends EnumFieldView {
             ['link', 'linkMultiple'] :
             ['link'];
 
+        const linkName = typeof defs.link === 'string' ? defs.link : field;
+        const linkedEntity = defs.entity ??
+            links[linkName]?.entity ??
+            links[field]?.entity;
+
         return Boolean(
             target &&
             allowedTypes.includes(defs.type) &&
-            links[field]?.entity === target
+            linkedEntity === target
         );
     }
 }

@@ -1,25 +1,36 @@
 {
   "fields": {
     "mode":"Instance Type","targetEntityType":"Target Entity Type","eligibilityCriteria":"Eligibility Criteria",
-    "identifierField":"Identifier Field","nameField":"Name Field","statusField":"Status Field",
+    "identifierField":"Target Identifier Field","nameField":"Target Title Field","statusField":"Status Field",
     "resourceField":"Resource Field","accountField":"Account Field","contactField":"Contact Field",
     "inProgressStatus":"In Progress Status","completedStatusList":"Completed Statuses",
-    "addTimeLogsTargetStatus":"Add Time Logs Target Status","readyForBillingTargetStatus":"Ready for Billing Target Status",
-    "invoicedTargetStatus":"Invoiced Target Status","defaultWorkBlockIds":"Default Work Blocks",
+    "addTimeLogsTargetStatus":"Add Time Logs Mirror Status","readyForBillingTargetStatus":"Ready for Billing Mirror Status",
+    "invoicedTargetStatus":"Invoiced Mirror Status","defaultWorkBlockIds":"Default Work Blocks",
     "showStreamEntries":"Show Added Time Entries in Stream","capacityConflictMode":"Capacity Conflict Policy",
     "outsideHoursMode":"Outside Hours Policy"
   },
   "tooltips": {
     "targetEntityType":"The existing queue or event-based entity this instance measures. No fields are added to it.",
     "identifierField":"Select the target field users recognize as the ticket, task, or work reference.",
-    "nameField":"Select the target field used as the human-readable work title.",
+    "nameField":"Select the target record's human-readable title for package headers, reports, and exports. Work Block names describe the individual planned activities.",
     "statusField":"Select the target entity's enum status field. Workflow status choices are populated from it.",
     "resourceField":"Select an existing User or Users relationship representing assigned resources.",
     "accountField":"Optionally select an existing Account relationship for reporting snapshots.",
     "contactField":"Optionally select an existing Contact relationship for reporting snapshots.",
     "inProgressStatus":"The existing target status applied when work is reported in.",
     "completedStatusList":"Existing target statuses treated as completed and ready for time-entry reconciliation.",
+    "addTimeLogsTargetStatus":"Optional mirror only. Leave blank to keep Add Time Logs solely in the extension's Billing queue.",
+    "readyForBillingTargetStatus":"Optional mirror only. Leave blank to keep Ready for Billing solely in the extension's Billing queue.",
+    "invoicedTargetStatus":"Optional mirror only. Leave blank to keep Invoiced solely in the extension's Billing queue.",
     "eligibilityCriteria":"Optional advanced AND-combined rules. Enter a JSON array of objects using field, operator, and value keys.",
-    "defaultWorkBlockIds":"Optional advanced ordered list of reusable Work Block IDs. Configure after templates exist."
+    "defaultWorkBlockIds":"Select the Work Blocks added by default and arrange their planning order. Lower positions are added first."
+  },
+  "labels": {
+    "Create ElevateRmInstance":"Create Instance",
+    "Basics":"Basics",
+    "Target Mapping":"Target Mapping",
+    "Workflow Statuses":"Workflow Statuses",
+    "Scheduling Policies":"Scheduling Policies",
+    "Advanced Rules":"Advanced Rules"
   }
 }

@@ -1,0 +1,11 @@
+{
+  "fields": {
+    "workPackage":"Target Work",
+    "definition":"Work Block",
+    "milestoneKind":"Milestone Type",
+    "totalEstimateSeconds":"Estimated Time",
+    "completionPercent":"Progress",
+    "actualElapsedSeconds":"Actual Elapsed Time",
+    "actualLabourSeconds":"Actual Labour Time"
+  }
+}

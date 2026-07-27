@@ -2,16 +2,21 @@
   "fields": {
     "name": {"type":"varchar","required":true,"maxLength":180},
     "instance": {"type":"link","required":true},
-    "activities": {"type":"jsonArray","default":[],"view":"elevate-resource-management:views/fields/json-array"},
-    "estimatedSeconds": {"type":"int","required":true,"min":60},
+    "activities": {"type":"jsonArray","default":[],"view":"elevate-resource-management:views/fields/json-array","readOnly":true,"utility":true},
+    "estimatedSeconds": {"type":"int","min":0,"readOnly":true,"default":0,"view":"elevate-resource-management:views/fields/duration-quarter-hour"},
     "active": {"type":"bool","default":true},
-    "defaultOrder": {"type":"int","default":0},
+    "isDefault": {"type":"bool","default":false},
+    "defaultOrder": {"type":"int","default":0,"tooltip":true},
     "milestoneKind": {"type":"enum","options":["Normal","Deadline","Achievement","Delivery"],"default":"Normal"}
   },
   "links": {
-    "instance": {"type":"belongsTo","entity":"ElevateRmInstance"}
+    "instance": {"type":"belongsTo","entity":"ElevateRmInstance"},
+    "workBlockItems": {"type":"hasMany","entity":"ElevateRmWorkBlockItem","foreign":"workBlock"}
   },
-  "indexes": {"instanceOrder":{"columns":["instanceId","defaultOrder"]}},
+  "indexes": {
+    "instanceOrder":{"columns":["instanceId","defaultOrder"]},
+    "instanceDefault":{"columns":["instanceId","isDefault","active"]}
+  },
   "optimisticConcurrencyControl": true,
   "transactionalSave": true,
   "collection": {"orderBy":"defaultOrder","order":"asc"}

@@ -1,0 +1,9 @@
+{
+  "fields": {
+    "workBlock":"Work Block",
+    "workItem":"Work Item",
+    "sequence":"Sequence",
+    "estimateOverrideSeconds":"Estimated Time Override",
+    "effectiveEstimateSeconds":"Effective Estimated Time"
+  }
+}

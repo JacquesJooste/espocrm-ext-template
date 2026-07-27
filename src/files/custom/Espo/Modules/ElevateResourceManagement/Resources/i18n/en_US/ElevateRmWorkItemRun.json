@@ -1,0 +1,13 @@
+{
+  "fields": {
+    "workBlockRun":"Work Block",
+    "sourceWorkItem":"Work Item",
+    "scheduledBlock":"Schedule",
+    "nameSnapshot":"Item",
+    "descriptionSnapshot":"Description",
+    "estimatedSeconds":"Estimated Time",
+    "actualElapsedSeconds":"Actual Elapsed Time",
+    "actualLabourSeconds":"Actual Labour Time",
+    "completedAt":"Completed At"
+  }
+}

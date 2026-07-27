@@ -1,14 +1,32 @@
-# Build and release checklist
+# Release and rollout
 
-1. Install exact dependencies and commit `package-lock.json`.
-2. Run `composer install`, `npm run validate`, `npm test`, and `npm run sa`.
-3. Build clean EspoCRM 10 test sites for MySQL and PostgreSQL.
-4. Exercise plan, Report In, milestone, finish, manual entry, lifecycle, billing snapshot, and reopen flows.
-5. Test internal Role combinations and denied operations.
-6. Test desktop, quick-detail, and mobile widths.
-7. Confirm Calendar and free/busy integration.
-8. Uninstall and verify pre-install target schema/data checksums are unchanged.
-9. Reinstall and verify retained extension history.
-10. Run `npm run dist`; publish the ZIP and matching SHA-256 file together.
+## 0.1.9 hardening boundary
+
+Release 0.1.9 contains only production hardening:
+
+- Scheduled Work Block audit fields and calendar-facing `assignedUsers`;
+- `createdAt` backfill from `dateStart`;
+- persistent singleton settings route and protected backing record;
+- corrected labels, translations, Default Planning Order tooltip, and grouped Instance layout.
+
+Deploy and verify this boundary before introducing the 0.2.0 workflow schema in environments that require separately approved releases.
+
+## 0.2.0 workflow redesign
+
+Release 0.2.0 adds Work Items, ordered Work Block composition, immutable runtime snapshots, timer-first target actions, partial rescheduling, role-oriented navigation, rollup overlays, and schema-version migration.
+
+## Production checklist
+
+1. Back up the database and Espo `data/` directory.
+2. Stop all active timers.
+3. Run `composer install`, `npm run validate`, `npm test`, `npm run sa`, and `npm run integration-tests` against the release candidate.
+4. Upload during a maintenance window and allow EspoCRM rebuild and migration to finish.
+5. Verify Meeting creation and `GET /Timeline/busyRanges` while Scheduled Work Blocks are enabled.
+6. Verify migration counts, Time Entry totals/attendees, legacy exact estimates, and billing snapshot checksums.
+7. Test Log Time, Stop Timer, manual entry, Work Block attachment, and partial rescheduling.
+8. Test technician, Operations Manager, Billing Administrator, and denied-role navigation.
+9. Test target detail/list behavior and Instance/Library setup at desktop and mobile widths.
+10. Test Account, Contact, and User rollups under restricted ACLs.
+11. Run `npm run dist`; publish the ZIP and matching SHA-256 together.
 
 Do not widen the manifest to EspoCRM 11 until a full certification run passes.

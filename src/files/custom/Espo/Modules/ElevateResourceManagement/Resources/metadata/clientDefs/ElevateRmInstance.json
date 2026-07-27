@@ -1,3 +1,11 @@
 {
-  "controller": "controllers/record"
+  "controller": "controllers/record",
+  "viewSetupHandlers": {
+    "record/detail": [
+      "elevate-resource-management:handlers/instance-guidance"
+    ],
+    "record/edit": [
+      "elevate-resource-management:handlers/instance-guidance"
+    ]
+  }
 }

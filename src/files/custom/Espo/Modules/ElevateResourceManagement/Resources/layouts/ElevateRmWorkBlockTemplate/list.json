@@ -1,1 +1,1 @@
-[{"name":"name","link":true},{"name":"instance"},{"name":"estimatedSeconds"},{"name":"milestoneKind"},{"name":"active"}]
+[{"name":"name","link":true},{"name":"instance"},{"name":"estimatedSeconds"},{"name":"milestoneKind"},{"name":"isDefault"},{"name":"active"}]

@@ -2,5 +2,9 @@
   "fields": {
     "operationsManager":"Operations Manager","billingAdministrator":"Billing Administrator",
     "autoMarkInvoicedOnExport":"Automatically Mark Invoiced After Successful Export"
+  },
+  "labels": {
+    "Resource Management Settings":"Resource Management Settings",
+    "Save Settings":"Save Settings"
   }
 }

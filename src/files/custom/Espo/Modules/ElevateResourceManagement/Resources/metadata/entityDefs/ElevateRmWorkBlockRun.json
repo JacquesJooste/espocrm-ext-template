@@ -1,0 +1,46 @@
+{
+  "fields": {
+    "name": {"type":"varchar","required":true,"maxLength":180},
+    "workPackage": {"type":"link","required":true},
+    "definition": {"type":"link"},
+    "status": {
+      "type":"enum",
+      "options":["Planned","In Progress","Completed","Cancelled"],
+      "default":"Planned",
+      "displayAsLabel":true,
+      "index":true
+    },
+    "milestoneKind": {
+      "type":"enum",
+      "options":["Normal","Deadline","Achievement","Delivery"],
+      "default":"Normal"
+    },
+    "sequence": {"type":"int","default":0},
+    "totalEstimateSeconds": {"type":"int","default":0,"readOnly":true},
+    "completionPercent": {"type":"float","default":0,"readOnly":true},
+    "actualElapsedSeconds": {"type":"int","default":0,"readOnly":true},
+    "actualLabourSeconds": {"type":"int","default":0,"readOnly":true},
+    "revision": {"type":"int","default":1,"readOnly":true},
+    "legacyScheduledBlockId": {
+      "type":"varchar",
+      "maxLength":64,
+      "readOnly":true,
+      "layoutDetailDisabled":true,
+      "layoutListDisabled":true
+    }
+  },
+  "links": {
+    "workPackage": {"type":"belongsTo","entity":"ElevateRmWorkPackage","foreign":"workBlockRuns"},
+    "definition": {"type":"belongsTo","entity":"ElevateRmWorkBlockTemplate"},
+    "scheduledBlocks": {"type":"hasMany","entity":"ElevateRmScheduledBlock","foreign":"workBlockRun"},
+    "workItemRuns": {"type":"hasMany","entity":"ElevateRmWorkItemRun","foreign":"workBlockRun"},
+    "timeEntries": {"type":"hasMany","entity":"ElevateRmTimeEntry","foreign":"workBlockRun"}
+  },
+  "indexes": {
+    "packageSequence": {"columns":["workPackageId","sequence"]},
+    "packageStatus": {"columns":["workPackageId","status"]},
+    "legacyScheduledBlock": {"columns":["legacyScheduledBlockId"],"unique":true}
+  },
+  "optimisticConcurrencyControl": true,
+  "transactionalSave": true
+}

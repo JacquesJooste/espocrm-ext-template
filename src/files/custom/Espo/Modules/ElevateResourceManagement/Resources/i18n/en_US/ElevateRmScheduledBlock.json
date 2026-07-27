@@ -1,0 +1,15 @@
+{
+  "fields": {
+    "name":"Work Block",
+    "dateStart":"Scheduled Start",
+    "dateEnd":"Scheduled End",
+    "assignedUsers":"Assigned Resources",
+    "workPackage":"Target Work",
+    "instance":"Instance",
+    "estimatedSeconds":"Estimated Time",
+    "sequence":"Sequence",
+    "milestoneKind":"Milestone Type",
+    "activitiesSnapshot":"Related Activities",
+    "completedAt":"Completed At"
+  }
+}

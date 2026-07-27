@@ -1,0 +1,26 @@
+{
+  "fields": {
+    "name": {"type":"varchar","required":true,"maxLength":255},
+    "workBlock": {"type":"link","required":true},
+    "workItem": {"type":"link","required":true},
+    "sequence": {"type":"int","required":true,"default":0},
+    "estimateOverrideSeconds": {
+      "type":"int",
+      "min":60,
+      "max":86400,
+      "view":"elevate-resource-management:views/fields/duration-quarter-hour"
+    },
+    "effectiveEstimateSeconds": {"type":"int","readOnly":true,"min":60}
+  },
+  "links": {
+    "workBlock": {"type":"belongsTo","entity":"ElevateRmWorkBlockTemplate","foreign":"workBlockItems"},
+    "workItem": {"type":"belongsTo","entity":"ElevateRmWorkItem","foreign":"workBlockItems"}
+  },
+  "indexes": {
+    "blockSequence": {"columns":["workBlockId","sequence"]},
+    "blockItem": {"columns":["workBlockId","workItemId"]}
+  },
+  "optimisticConcurrencyControl": true,
+  "transactionalSave": true,
+  "collection": {"orderBy":"sequence","order":"asc"}
+}

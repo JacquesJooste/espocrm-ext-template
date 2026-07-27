@@ -21,4 +21,16 @@ final class Lifecycle
 
         return self::READY;
     }
+
+    /**
+     * @param mixed[] $completedStatuses
+     * @return string[]
+     */
+    public static function completedTargetStatusList(array $completedStatuses, mixed ...$mirrorStatuses): array
+    {
+        return array_values(array_unique(array_filter(
+            [...$completedStatuses, ...$mirrorStatuses],
+            static fn (mixed $value): bool => is_string($value) && $value !== ''
+        )));
+    }
 }

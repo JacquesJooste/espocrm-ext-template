@@ -21,4 +21,19 @@ final class LifecycleTest extends TestCase
     {
         self::assertSame(Lifecycle::READY, Lifecycle::forCompletion(true, false, 2, 2));
     }
+
+    public function testBillingMirrorStatusesRemainCompleted(): void
+    {
+        self::assertSame(
+            ['Closed', 'ClosedAddTime', 'ClosedReady', 'ClosedInvoiced'],
+            Lifecycle::completedTargetStatusList(
+                ['Closed', 'ClosedAddTime'],
+                'ClosedAddTime',
+                'ClosedReady',
+                'ClosedInvoiced',
+                null,
+                ''
+            )
+        );
+    }
 }

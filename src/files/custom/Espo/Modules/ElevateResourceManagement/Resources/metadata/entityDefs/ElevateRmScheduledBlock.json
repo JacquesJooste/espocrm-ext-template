@@ -6,6 +6,7 @@
     "dateEnd": {"type":"datetime","required":true,"after":"dateStart","audited":true},
     "isAllDay": {"type":"bool","default":false},
     "workPackage": {"type":"link","required":true},
+    "workBlockRun": {"type":"link"},
     "template": {"type":"link"},
     "instance": {"type":"link","required":true},
     "activitiesSnapshot": {"type":"jsonArray","default":[],"view":"elevate-resource-management:views/fields/json-array"},
@@ -13,15 +14,22 @@
     "sequence": {"type":"int","default":0},
     "milestoneKind": {"type":"enum","options":["Normal","Deadline","Achievement","Delivery"],"default":"Normal"},
     "completedAt": {"type":"datetime","readOnly":true},
-    "users": {"type":"linkMultiple","required":true},
+    "assignedUsers": {"type":"linkMultiple","required":true,"view":"views/fields/assigned-users"},
     "revision": {"type":"int","default":1,"readOnly":true},
-    "description": {"type":"text"}
+    "description": {"type":"text"},
+    "createdAt": {"type":"datetime","readOnly":true},
+    "modifiedAt": {"type":"datetime","readOnly":true},
+    "createdBy": {"type":"link","readOnly":true,"view":"views/fields/user"},
+    "modifiedBy": {"type":"link","readOnly":true,"view":"views/fields/user"}
   },
   "links": {
     "workPackage": {"type":"belongsTo","entity":"ElevateRmWorkPackage","foreign":"scheduledBlocks"},
+    "workBlockRun": {"type":"belongsTo","entity":"ElevateRmWorkBlockRun","foreign":"scheduledBlocks"},
     "template": {"type":"belongsTo","entity":"ElevateRmWorkBlockTemplate"},
     "instance": {"type":"belongsTo","entity":"ElevateRmInstance"},
-    "users": {"type":"hasMany","entity":"User","foreign":"elevateRmScheduledBlocks","relationName":"elevateRmScheduledBlockUser"}
+    "assignedUsers": {"type":"hasMany","entity":"User","foreign":"elevateRmScheduledBlocks","relationName":"elevateRmScheduledBlockUser"},
+    "createdBy": {"type":"belongsTo","entity":"User"},
+    "modifiedBy": {"type":"belongsTo","entity":"User"}
   },
   "indexes": {
     "packageSequence":{"columns":["workPackageId","sequence"]},

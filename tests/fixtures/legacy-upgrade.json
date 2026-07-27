@@ -1,0 +1,30 @@
+{
+  "workBlock": {
+    "id": "legacy-template-001",
+    "name": "On-site router replacement",
+    "activities": ["Remove failed device", "Configure and validate replacement"],
+    "estimatedSeconds": 3770,
+    "active": true
+  },
+  "scheduledBlock": {
+    "id": "legacy-schedule-001",
+    "name": "On-site router replacement",
+    "status": "Completed",
+    "milestoneKind": "Delivery",
+    "sequence": 3,
+    "estimatedSeconds": 3770,
+    "completedAt": "2026-07-20 10:15:00"
+  },
+  "timeEntry": {
+    "id": "legacy-entry-001",
+    "elapsedSeconds": 1800,
+    "labourSeconds": 3600,
+    "attendeeIds": ["user-a", "user-b"],
+    "attendeeNames": ["Technician A", "Technician B"]
+  },
+  "billingSnapshot": {
+    "id": "legacy-snapshot-001",
+    "json": "{\"elapsedSeconds\":1800,\"labourSeconds\":3600,\"entryId\":\"legacy-entry-001\"}",
+    "checksum": "06892673eb1ea3b7e6d6dddf770f360ded45072fa1ff16627d495429d8c8e282"
+  }
+}

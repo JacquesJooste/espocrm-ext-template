@@ -4,6 +4,9 @@ parameters:
     treatPhpDocTypesAsCertain: false
     paths:
         - src/files/custom/Espo/Modules/ElevateResourceManagement
+        - src/scripts
     bootstrapFiles:
-        - site/vendor/autoload.php
+        - vendor/autoload.php
+    scanDirectories:
+        - site/application/Espo
     reportUnmatchedIgnoredErrors: false

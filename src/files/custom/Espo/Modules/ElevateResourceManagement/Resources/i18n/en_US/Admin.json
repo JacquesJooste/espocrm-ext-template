@@ -4,6 +4,7 @@
     "Time Management": "Time Management"
   },
   "descriptions": {
-    "elevateResourceManagement": "Configure resource planning, time capture, reporting, and billing readiness."
+    "elevateResourceManagement": "Plan work, capture time, review capacity, and prepare billing.",
+    "elevateResourceManagementSettings": "Configure the persistent Resource Management settings."
   }
 }

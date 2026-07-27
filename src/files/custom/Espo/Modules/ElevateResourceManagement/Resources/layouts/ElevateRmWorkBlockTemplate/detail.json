@@ -1,1 +1,11 @@
-[{"rows":[[{"name":"name"},{"name":"instance"}],[{"name":"estimatedSeconds"},{"name":"defaultOrder"}],[{"name":"active"},{"name":"milestoneKind"}],[{"name":"activities"}]]}]
+[
+  {
+    "label":"Overview",
+    "rows":[
+      [{"name":"name"},{"name":"instance"}],
+      [{"name":"active"},{"name":"milestoneKind"}],
+      [{"name":"isDefault"},{"name":"defaultOrder"}],
+      [{"name":"estimatedSeconds"},false]
+    ]
+  }
+]

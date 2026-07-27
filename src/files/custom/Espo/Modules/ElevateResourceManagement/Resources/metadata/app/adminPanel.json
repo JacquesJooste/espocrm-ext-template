@@ -7,6 +7,12 @@
         "label": "Time Management",
         "iconClass": "fas fa-business-time",
         "description": "elevateResourceManagement"
+      },
+      {
+        "url": "#ElevateResourceManagement/setup",
+        "label": "Resource Management Settings",
+        "iconClass": "fas fa-sliders-h",
+        "description": "elevateResourceManagementSettings"
       }
     ],
     "order": 23

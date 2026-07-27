@@ -1,0 +1,17 @@
+{
+  "fields": {
+    "name":"Work Block",
+    "instance":"Instance",
+    "activities":"Related Activities",
+    "estimatedSeconds":"Estimated Time",
+    "active":"Active",
+    "defaultOrder":"Default Planning Order",
+    "milestoneKind":"Milestone Type"
+  },
+  "tooltips": {
+    "defaultOrder":"Controls the default order in which Work Blocks are added to a target; lower values come first."
+  },
+  "labels": {
+    "Create ElevateRmWorkBlockTemplate":"Create Work Block"
+  }
+}

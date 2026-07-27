@@ -82,7 +82,13 @@ final class ValidateConfiguration implements BeforeSave
     private function assertLink(string $entityType, string $field, string $target, array $types, string $mapping): void
     {
         $this->assertFieldType($entityType, $field, $types, $mapping);
-        $linkTarget = $this->metadata->get("entityDefs.$entityType.links.$field.entity");
+        $linkName = $this->metadata->get("entityDefs.$entityType.fields.$field.link");
+        $linkName = is_string($linkName) && $linkName !== '' ? $linkName : $field;
+        $fieldTarget = $this->metadata->get("entityDefs.$entityType.fields.$field.entity");
+        $linkTarget = is_string($fieldTarget) && $fieldTarget !== ''
+            ? $fieldTarget
+            : $this->metadata->get("entityDefs.$entityType.links.$linkName.entity");
+
         if ($linkTarget !== $target) {
             throw new BadRequest("The $mapping mapping must link to $target.");
         }

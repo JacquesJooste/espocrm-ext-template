@@ -2,6 +2,9 @@
   "fields": {
     "name": {"type":"varchar","required":true},
     "workPackage": {"type":"link","required":true},
+    "workBlockRun": {"type":"link"},
+    "workItemRun": {"type":"link"},
+    "scheduledBlock": {"type":"link"},
     "status": {"type":"enum","options":["Active","Completed","Abandoned"],"default":"Active","index":true},
     "startedAt": {"type":"datetime","required":true},
     "endedAt": {"type":"datetime"},
@@ -12,7 +15,10 @@
     "revision": {"type":"int","default":1,"readOnly":true}
   },
   "links": {
-    "workPackage": {"type":"belongsTo","entity":"ElevateRmWorkPackage","foreign":"sessions"}
+    "workPackage": {"type":"belongsTo","entity":"ElevateRmWorkPackage","foreign":"sessions"},
+    "workBlockRun": {"type":"belongsTo","entity":"ElevateRmWorkBlockRun"},
+    "workItemRun": {"type":"belongsTo","entity":"ElevateRmWorkItemRun"},
+    "scheduledBlock": {"type":"belongsTo","entity":"ElevateRmScheduledBlock"}
   },
   "indexes": {
     "packageStatus":{"columns":["workPackageId","status"]},

@@ -80,6 +80,9 @@ final class ExportBilling implements Action
             }
             $html .= '<div class="block"><strong>' . $this->escape((string) ($item['date'] ?? '')) . ' — ' .
                 $this->escape((string) ($item['blockName'] ?? '')) . '</strong><br>' .
+                ($item['workItemName'] ?? null
+                    ? '<em>' . $this->escape((string) $item['workItemName']) . '</em><br>'
+                    : '') .
                 $this->escape((string) ($item['start'] ?? '')) . ' – ' . $this->escape((string) ($item['end'] ?? '')) .
                 ' (' . $this->duration((int) ($item['elapsedSeconds'] ?? 0)) . ')<br>' .
                 'Team of ' . count((array) ($item['attendeeNames'] ?? [])) . ': ' . $this->escape($names) .
@@ -94,12 +97,13 @@ final class ExportBilling implements Action
     /** @param array<string, mixed> $data */
     private function csv(array $data): string
     {
-        $lines = ['Ticket,Date,Work Block,Start,End,Elapsed Seconds,Labour Seconds,Team,Activities,Work Note'];
+        $lines = ['Ticket,Date,Work Block,Work Item,Start,End,Elapsed Seconds,Labour Seconds,Team,Activities,Work Note'];
         foreach ((array) ($data['items'] ?? []) as $item) {
             $lines[] = $this->csvRow([
                 $data['ticketIdentifier'] ?? '',
                 $item['date'] ?? '',
                 $item['blockName'] ?? '',
+                $item['workItemName'] ?? '',
                 $item['start'] ?? '',
                 $item['end'] ?? '',
                 $item['elapsedSeconds'] ?? 0,

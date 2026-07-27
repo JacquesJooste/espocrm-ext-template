@@ -1,0 +1,37 @@
+{
+  "fields": {
+    "name": {"type":"varchar","required":true,"maxLength":180},
+    "description": {"type":"text"},
+    "defaultEstimateSeconds": {
+      "type":"int",
+      "required":true,
+      "min":60,
+      "max":86400,
+      "view":"elevate-resource-management:views/fields/duration-quarter-hour"
+    },
+    "legacyWorkBlockId": {
+      "type":"varchar",
+      "maxLength":64,
+      "readOnly":true,
+      "layoutDetailDisabled":true,
+      "layoutListDisabled":true
+    },
+    "active": {"type":"bool","default":true},
+    "createdAt": {"type":"datetime","readOnly":true},
+    "modifiedAt": {"type":"datetime","readOnly":true},
+    "createdBy": {"type":"link","readOnly":true,"view":"views/fields/user"},
+    "modifiedBy": {"type":"link","readOnly":true,"view":"views/fields/user"}
+  },
+  "links": {
+    "workBlockItems": {"type":"hasMany","entity":"ElevateRmWorkBlockItem","foreign":"workItem"},
+    "createdBy": {"type":"belongsTo","entity":"User"},
+    "modifiedBy": {"type":"belongsTo","entity":"User"}
+  },
+  "indexes": {
+    "activeName": {"columns":["active","name"]},
+    "legacyWorkBlock": {"columns":["legacyWorkBlockId"],"unique":true}
+  },
+  "optimisticConcurrencyControl": true,
+  "transactionalSave": true,
+  "collection": {"orderBy":"name","order":"asc"}
+}

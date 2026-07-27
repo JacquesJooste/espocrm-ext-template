@@ -40,7 +40,14 @@ class TargetStatusFieldView extends EnumFieldView {
             options.push(current);
         }
 
-        const translations = {'': 'Select a status'};
+        const required = Boolean(
+            this.model.getFieldParam(this.name, 'required')
+        );
+        const translations = {
+            '': required ?
+                'Select a status' :
+                'Do not sync the target status',
+        };
 
         options.slice(1).forEach(value => {
             translations[value] = this.getLanguage()

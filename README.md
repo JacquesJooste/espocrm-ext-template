@@ -1,6 +1,6 @@
 # Elevate Resource Management
 
-Elevate Resource Management is an EspoCRM 10.x extension for reusable Work Blocks, scheduled resource planning, mobile-friendly time capture, capacity visibility, reporting, and billing readiness.
+Elevate Resource Management 0.2.0 is an EspoCRM 10.x extension built around reusable Work Items, composed Work Blocks, timer-first Time Entries, scheduled resource planning, capacity visibility, reporting, and billing readiness.
 
 It is deliberately data-agnostic. Administrators map an instance to an existing target entity and existing fields/status values. The extension never adds fields, relationships, or enum options to that target.
 
@@ -26,7 +26,7 @@ npm run dist
 
 The installable ZIP and SHA-256 file are written to `build/`.
 
-Read [the administrator guide](docs/administrator-guide.md), [architecture](docs/architecture.md), and [release checklist](docs/release.md) before installing in production.
+Read [the administrator guide](docs/administrator-guide.md), [architecture](docs/architecture.md), [API compatibility](docs/api.md), and [release checklist](docs/release.md) before installing in production.
 
 ## Data retention
 

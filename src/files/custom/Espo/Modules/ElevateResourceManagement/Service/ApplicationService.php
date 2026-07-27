@@ -13,8 +13,10 @@ use Espo\Core\Exceptions\NotFound;
 use Espo\Core\Utils\DateTime;
 use Espo\Entities\User;
 use Espo\Modules\ElevateResourceManagement\Domain\Eligibility;
+use Espo\Modules\ElevateResourceManagement\Domain\Duration;
 use Espo\Modules\ElevateResourceManagement\Domain\Lifecycle;
 use Espo\Modules\ElevateResourceManagement\Domain\TimeMath;
+use Espo\Modules\ElevateResourceManagement\Domain\WorkItemMath;
 use Espo\ORM\Entity;
 use Espo\ORM\EntityManager;
 use Espo\Tools\WorkingTime\CalendarUtilityFactory;
@@ -31,6 +33,10 @@ final class ApplicationService
     private const ENTRY = 'ElevateRmTimeEntry';
     private const SETTINGS = 'ElevateRmSettings';
     private const SNAPSHOT = 'ElevateRmBillingSnapshot';
+    private const WORK_ITEM = 'ElevateRmWorkItem';
+    private const BLOCK_ITEM = 'ElevateRmWorkBlockItem';
+    private const BLOCK_RUN = 'ElevateRmWorkBlockRun';
+    private const ITEM_RUN = 'ElevateRmWorkItemRun';
 
     public function __construct(
         private EntityManager $entityManager,
@@ -39,6 +45,217 @@ final class ApplicationService
         private CalendarUtilityFactory $calendarUtilityFactory,
         private ServiceContainer $recordServiceContainer,
     ) {}
+
+    /** @return array<string, mixed> */
+    public function settings(): array
+    {
+        $this->assertManager();
+
+        return $this->entityDto($this->settingsEntity());
+    }
+
+    /** @return array<string, bool> */
+    public function permissions(): array
+    {
+        $this->assertInternalUser();
+        $settings = $this->entityManager->getRDBRepository(self::SETTINGS)->findOne();
+        $isOperationsManager = $this->user->isAdmin() ||
+            ($settings && $settings->get('operationsManagerId') === $this->user->getId());
+        $isBillingManager = $this->user->isAdmin() ||
+            ($settings && $settings->get('billingAdministratorId') === $this->user->getId());
+
+        return [
+            'manager' => $isOperationsManager || $isBillingManager,
+            'operationsManager' => $isOperationsManager,
+            'billingManager' => $isBillingManager,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    public function updateSettings(array $input): array
+    {
+        $this->assertManager();
+        $settings = $this->settingsEntity();
+
+        foreach (['operationsManagerId', 'billingAdministratorId'] as $field) {
+            if (array_key_exists($field, $input)) {
+                $settings->set($field, $this->requiredString($input, $field));
+            }
+        }
+
+        if (array_key_exists('autoMarkInvoicedOnExport', $input)) {
+            $settings->set('autoMarkInvoicedOnExport', (bool) $input['autoMarkInvoicedOnExport']);
+        }
+
+        $this->entityManager->saveEntity($settings);
+
+        return $this->entityDto($settings);
+    }
+
+    /** @return array<string, mixed> */
+    public function workBlockComposition(string $id): array
+    {
+        $this->assertManager();
+        $workBlock = $this->get(self::TEMPLATE, $id);
+
+        return $this->workBlockDefinitionDto($workBlock);
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    public function createWorkBlock(array $input): array
+    {
+        $this->assertManager();
+
+        return $this->entityManager->getTransactionManager()->run(
+            fn (): array => $this->saveWorkBlockDefinition(null, $input)
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    public function updateWorkBlockDefinition(string $id, array $input): array
+    {
+        $this->assertManager();
+
+        return $this->entityManager->getTransactionManager()->run(
+            fn (): array => $this->saveWorkBlockDefinition($this->get(self::TEMPLATE, $id), $input)
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function saveWorkBlockDefinition(?Entity $workBlock, array $input): array
+    {
+        $values = [
+            'name' => $this->requiredString($input, 'name'),
+            'instanceId' => $this->requiredString($input, 'instanceId'),
+            'active' => (bool) ($input['active'] ?? true),
+            'isDefault' => (bool) ($input['isDefault'] ?? false),
+            'defaultOrder' => (int) ($input['defaultOrder'] ?? 0),
+            'milestoneKind' => (string) ($input['milestoneKind'] ?? 'Normal'),
+        ];
+
+        if ($workBlock) {
+            $workBlock->setMultiple($values);
+            $this->entityManager->saveEntity($workBlock);
+        } else {
+            $workBlock = $this->entityManager->createEntity(self::TEMPLATE, [
+                ...$values,
+                'estimatedSeconds' => 0,
+                'activities' => [],
+            ]);
+        }
+
+        $items = $input['items'] ?? null;
+        if (!is_array($items) || $items === []) {
+            throw new BadRequest('A Work Block requires at least one Work Item.');
+        }
+        $orderedItems = [];
+        foreach (array_values($items) as $inputOrder => $row) {
+            if (!is_array($row)) {
+                throw new BadRequest('Invalid Work Item row.');
+            }
+            $sequence = $row['sequence'] ?? $inputOrder;
+            if (!is_int($sequence) && !is_numeric($sequence)) {
+                throw new BadRequest('Work Item sequence must be numeric.');
+            }
+            $orderedItems[] = [
+                'row' => $row,
+                'sequence' => (int) $sequence,
+                'inputOrder' => $inputOrder,
+            ];
+        }
+        usort($orderedItems, static fn (array $a, array $b): int =>
+            $a['sequence'] <=> $b['sequence'] ?: $a['inputOrder'] <=> $b['inputOrder']
+        );
+
+        $existing = [];
+        foreach ($this->entityManager->getRDBRepository(self::BLOCK_ITEM)
+            ->where(['workBlockId' => $workBlock->getId()])
+            ->find() as $membership) {
+            $existing[$membership->getId()] = $membership;
+        }
+
+        $kept = [];
+        $total = 0;
+        foreach ($orderedItems as $sequence => $orderedItem) {
+            $row = $orderedItem['row'];
+
+            $workItem = $this->resolveCompositionWorkItem($row);
+            $membershipId = $row['id'] ?? null;
+            $membership = is_string($membershipId) && isset($existing[$membershipId])
+                ? $existing[$membershipId]
+                : null;
+            $override = $this->optionalDurationSeconds(
+                $row['estimateOverride'] ?? $row['estimateOverrideSeconds'] ?? null
+            );
+            $effective = WorkItemMath::effectiveEstimate(
+                (int) $workItem->get('defaultEstimateSeconds'),
+                $override
+            );
+            $membershipValues = [
+                'name' => (string) $workItem->get('name') . ' #' . ($sequence + 1),
+                'workBlockId' => $workBlock->getId(),
+                'workItemId' => $workItem->getId(),
+                'sequence' => $sequence,
+                'estimateOverrideSeconds' => $override,
+                'effectiveEstimateSeconds' => $effective,
+            ];
+
+            if ($membership) {
+                $membership->setMultiple($membershipValues);
+                $this->entityManager->saveEntity($membership);
+            } else {
+                $membership = $this->entityManager->createEntity(self::BLOCK_ITEM, $membershipValues);
+            }
+
+            $kept[$membership->getId()] = true;
+            $total += $effective;
+        }
+
+        foreach ($existing as $id => $membership) {
+            if (!isset($kept[$id])) {
+                $this->entityManager->removeEntity($membership);
+            }
+        }
+
+        $workBlock->set('estimatedSeconds', $total);
+        $this->entityManager->saveEntity($workBlock);
+
+        return $this->workBlockDefinitionDto($workBlock);
+    }
+
+    /** @param array<string, mixed> $row */
+    private function resolveCompositionWorkItem(array $row): Entity
+    {
+        if (isset($row['workItemId']) && is_string($row['workItemId'])) {
+            return $this->get(self::WORK_ITEM, $row['workItemId']);
+        }
+
+        $create = $row['create'] ?? null;
+        if (!is_array($create)) {
+            throw new BadRequest('Select or create a Work Item.');
+        }
+
+        return $this->entityManager->createEntity(self::WORK_ITEM, [
+            'name' => $this->requiredString($create, 'name'),
+            'description' => (string) ($create['description'] ?? ''),
+            'defaultEstimateSeconds' => $this->durationSeconds(
+                $create['duration'] ?? $create['defaultEstimateSeconds'] ?? null
+            ),
+            'active' => (bool) ($create['active'] ?? true),
+        ]);
+    }
 
     /** @return array<string, mixed> */
     public function context(string $entityType, string $id): array
@@ -52,6 +269,21 @@ final class ApplicationService
 
         $session = $package ? $this->activeSession($package->getId()) : null;
         $blocks = [];
+        $workBlocks = [];
+        $availableWorkBlocks = [];
+        $timeEntries = [];
+
+        foreach ($instances as $instance) {
+            foreach ($this->entityManager->getRDBRepository(self::TEMPLATE)
+                ->where([
+                    'instanceId' => $instance->getId(),
+                    'active' => true,
+                ])
+                ->order('defaultOrder')
+                ->find() as $definition) {
+                $availableWorkBlocks[] = $this->workBlockDefinitionDto($definition);
+            }
+        }
 
         if ($package) {
             foreach ($this->entityManager->getRDBRepository(self::BLOCK)
@@ -59,6 +291,25 @@ final class ApplicationService
                 ->order('sequence')
                 ->find() as $block) {
                 $blocks[] = $this->entityDto($block);
+            }
+            foreach ($this->entityManager->getRDBRepository(self::BLOCK_RUN)
+                ->where(['workPackageId' => $package->getId(), 'status!=' => 'Cancelled'])
+                ->order('sequence')
+                ->find() as $run) {
+                $workBlocks[] = $this->workBlockRunDto($run);
+            }
+            foreach ($this->entityManager->getRDBRepository(self::ENTRY)
+                ->where(['workPackageId' => $package->getId()])
+                ->order('dateStart', 'DESC')
+                ->limit(10)
+                ->find() as $entry) {
+                $dto = $this->entityDto($entry);
+                $itemRunId = $entry->get('workItemRunId');
+                $itemRun = is_string($itemRunId) && $itemRunId !== ''
+                    ? $this->entityManager->getRDBRepository(self::ITEM_RUN)->getById($itemRunId)
+                    : null;
+                $dto['workItemName'] = $itemRun?->get('nameSnapshot');
+                $timeEntries[] = $dto;
             }
         }
 
@@ -72,13 +323,87 @@ final class ApplicationService
             'package' => $package ? $this->packageDto($package) : null,
             'activeSession' => $session ? $this->sessionDto($session) : null,
             'blocks' => $blocks,
+            'workBlocks' => $workBlocks,
+            'timeEntries' => $timeEntries,
+            'availableWorkBlocks' => $availableWorkBlocks,
             'actions' => [
                 'plan' => !$package && count($instances) > 0,
                 'reportIn' => (bool) $package && (bool) $package->get('scheduledStart') && !$session,
                 'milestone' => (bool) $session,
                 'finish' => (bool) $session,
                 'manualEntry' => (bool) $package && (bool) $package->get('scheduledStart'),
+                'logTime' => (bool) $package && $workBlocks !== [] && !$session,
+                'stopTimer' => (bool) $session,
+                'workBlocks' => count($instances) > 0,
             ],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function myWork(): array
+    {
+        $this->assertInternalUser();
+        $activeSession = null;
+        foreach ($this->entityManager->getRDBRepository(self::SESSION)
+            ->where(['status' => 'Active'])
+            ->find() as $session) {
+            if (in_array($this->user->getId(), (array) $session->get('attendeeIds'), true)) {
+                $activeSession = $session;
+                break;
+            }
+        }
+
+        $items = [];
+        foreach ($this->entityManager->getRDBRepository(self::BLOCK)
+            ->where([
+                'status' => ['Planned', 'In Progress'],
+                'dateEnd>=' => DateTime::getSystemNowString(),
+            ])
+            ->order('dateStart')
+            ->limit(200)
+            ->find() as $block) {
+            if (!in_array($this->user->getId(), (array) $block->get('assignedUsersIds'), true)) {
+                continue;
+            }
+
+            $package = $this->get(self::PACKAGE, (string) $block->get('workPackageId'));
+            foreach ($this->entityManager->getRDBRepository(self::ITEM_RUN)
+                ->where([
+                    'scheduledBlockId' => $block->getId(),
+                    'status' => ['Planned', 'In Progress'],
+                ])
+                ->order('sequence')
+                ->find() as $itemRun) {
+                $items[] = array_merge($this->entityDto($itemRun), [
+                    'scheduledBlockId' => $block->getId(),
+                    'dateStart' => $block->get('dateStart'),
+                    'dateEnd' => $block->get('dateEnd'),
+                    'targetType' => $package->get('targetType'),
+                    'targetId' => $package->get('targetId'),
+                    'targetIdentifier' => $package->get('targetIdentifier'),
+                    'targetName' => $package->get('targetName'),
+                ]);
+            }
+        }
+
+        $activeTarget = null;
+        if ($activeSession) {
+            $activePackage = $this->get(
+                self::PACKAGE,
+                (string) $activeSession->get('workPackageId')
+            );
+            $activeTarget = [
+                'entityType' => $activePackage->get('targetType'),
+                'id' => $activePackage->get('targetId'),
+                'identifier' => $activePackage->get('targetIdentifier'),
+                'name' => $activePackage->get('targetName'),
+            ];
+        }
+
+        return [
+            'activeSession' => $activeSession ? $this->sessionDto($activeSession) : null,
+            'activeTarget' => $activeTarget,
+            'items' => $items,
         ];
     }
 
@@ -110,11 +435,316 @@ final class ApplicationService
         return ['items' => $result];
     }
 
+    /** @return array<string, mixed> */
+    public function rollup(string $entityType, string $id): array
+    {
+        $this->assertInternalUser();
+        $this->target($entityType, $id, false);
+
+        if ($entityType === 'User') {
+            return $this->userRollup($id);
+        }
+        if (!in_array($entityType, ['Account', 'Contact'], true)) {
+            throw new BadRequest('Rollups are available for User, Account and Contact records.');
+        }
+
+        $snapshotField = $entityType === 'Account'
+            ? 'accountIdSnapshot'
+            : 'contactIdSnapshot';
+        $packages = iterator_to_array(
+            $this->entityManager->getRDBRepository(self::PACKAGE)
+                ->where([$snapshotField => $id])
+                ->order('plannedStart', 'DESC')
+                ->limit(200)
+                ->find()
+        );
+        $elapsed = 0;
+        $labour = 0;
+        $entryCount = 0;
+        $targets = [];
+        $visiblePackageCount = 0;
+
+        foreach ($packages as $package) {
+            try {
+                $this->target(
+                    (string) $package->get('targetType'),
+                    (string) $package->get('targetId'),
+                    false
+                );
+            } catch (Forbidden|NotFound) {
+                continue;
+            }
+            $visiblePackageCount++;
+            foreach ($this->entriesForPackage($package->getId()) as $entry) {
+                $elapsed += (int) $entry->get('elapsedSeconds');
+                $labour += (int) $entry->get('labourSeconds');
+                $entryCount++;
+            }
+            if (count($targets) >= 10) {
+                continue;
+            }
+            $targets[] = [
+                'entityType' => $package->get('targetType'),
+                'id' => $package->get('targetId'),
+                'identifier' => $package->get('targetIdentifier'),
+                'name' => $package->get('targetName'),
+                'lifecycle' => $package->get('lifecycle'),
+                'completionPercent' => $package->get('completionPercent'),
+            ];
+        }
+
+        return [
+            'kind' => $entityType,
+            'packageCount' => $visiblePackageCount,
+            'entryCount' => $entryCount,
+            'elapsedSeconds' => $elapsed,
+            'labourSeconds' => $labour,
+            'recentTargets' => $targets,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function userRollup(string $userId): array
+    {
+        if ($userId !== $this->user->getId()) {
+            $this->assertManager();
+        }
+
+        $resource = $this->entityManager->getRDBRepositoryByClass(User::class)->getById($userId);
+        if (!$resource) {
+            throw new NotFound();
+        }
+
+        $now = new DateTimeImmutable(DateTime::getSystemNowString());
+        $to = $now->modify('+7 days');
+        $scheduledSeconds = 0;
+        $upcoming = [];
+        foreach ($this->entityManager->getRDBRepository(self::BLOCK)
+            ->where([
+                'status' => ['Planned', 'In Progress'],
+                'dateEnd>=' => $now->format('Y-m-d H:i:s'),
+                'dateStart<' => $to->format('Y-m-d H:i:s'),
+            ])
+            ->order('dateStart')
+            ->limit(500)
+            ->find() as $block) {
+            if (!in_array($userId, (array) ($block->get('assignedUsersIds') ?? []), true)) {
+                continue;
+            }
+            $scheduledSeconds += TimeMath::calculate(
+                (string) $block->get('dateStart'),
+                (string) $block->get('dateEnd'),
+                1
+            )['elapsedSeconds'];
+            if (count($upcoming) < 10) {
+                $package = $this->get(self::PACKAGE, (string) $block->get('workPackageId'));
+                try {
+                    $this->target(
+                        (string) $package->get('targetType'),
+                        (string) $package->get('targetId'),
+                        false
+                    );
+                } catch (Forbidden|NotFound) {
+                    continue;
+                }
+                $upcoming[] = [
+                    'name' => $block->get('name'),
+                    'dateStart' => $block->get('dateStart'),
+                    'dateEnd' => $block->get('dateEnd'),
+                    'targetType' => $package->get('targetType'),
+                    'targetId' => $package->get('targetId'),
+                    'targetIdentifier' => $package->get('targetIdentifier'),
+                ];
+            }
+        }
+
+        $bookableSeconds = (int) round(
+            $this->calendarUtilityFactory->createForUser($resource)->getSummedWorkingHours(
+                FieldDateTime::fromString($now->format('Y-m-d H:i:s')),
+                FieldDateTime::fromString($to->format('Y-m-d H:i:s'))
+            ) * 3600
+        );
+        $active = null;
+        foreach ($this->entityManager->getRDBRepository(self::SESSION)
+            ->where(['status' => 'Active'])
+            ->find() as $session) {
+            if (in_array($userId, (array) ($session->get('attendeeIds') ?? []), true)) {
+                $active = $this->sessionDto($session);
+                break;
+            }
+        }
+
+        return [
+            'kind' => 'User',
+            'activeSession' => $active,
+            'scheduledSeconds' => $scheduledSeconds,
+            'bookableSeconds' => $bookableSeconds,
+            'utilizationPercent' => $bookableSeconds > 0
+                ? round($scheduledSeconds / $bookableSeconds * 100, 1)
+                : 0,
+            'upcoming' => $upcoming,
+        ];
+    }
+
     /**
      * @param array<string, mixed> $input
      * @return array<string, mixed>
      */
     public function createPackage(array $input): array
+    {
+        return $this->entityManager->getTransactionManager()->run(
+            fn (): array => $this->doCreatePackage($input)
+        );
+    }
+
+    /**
+     * Attach additional Work Block definitions to an existing target package.
+     *
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    public function attachWorkBlocks(string $packageId, array $input): array
+    {
+        return $this->entityManager->getTransactionManager()->run(
+            function () use ($packageId, $input): array {
+                $package = $this->get(self::PACKAGE, $packageId);
+                $instance = $this->get(self::INSTANCE, (string) $package->get('instanceId'));
+                $this->target(
+                    (string) $package->get('targetType'),
+                    (string) $package->get('targetId'),
+                    true
+                );
+
+                $templateIds = $input['templateIds'] ?? null;
+                if (!is_array($templateIds) || $templateIds === []) {
+                    throw new BadRequest('At least one Work Block is required.');
+                }
+
+                $attendeeIds = $this->stringList($input['attendeeIds'] ?? []);
+                $start = new DateTimeImmutable($this->requiredString($input, 'scheduledStart'));
+                $sequence = 0;
+
+                foreach ($this->entityManager->getRDBRepository(self::BLOCK_RUN)
+                    ->where(['workPackageId' => $package->getId()])
+                    ->find() as $existingRun) {
+                    $sequence = max($sequence, (int) $existingRun->get('sequence') + 1);
+                }
+
+                $addedEstimate = 0;
+                $runs = [];
+
+                foreach ($templateIds as $templateId) {
+                    if (!is_string($templateId)) {
+                        throw new BadRequest('Invalid Work Block selection.');
+                    }
+
+                    $template = $this->get(self::TEMPLATE, $templateId);
+                    if (
+                        $template->get('instanceId') !== $instance->getId() ||
+                        !$template->get('active')
+                    ) {
+                        throw new BadRequest('Invalid Work Block selection.');
+                    }
+
+                    $memberships = iterator_to_array(
+                        $this->entityManager->getRDBRepository(self::BLOCK_ITEM)
+                            ->where(['workBlockId' => $template->getId()])
+                            ->order('sequence')
+                            ->find()
+                    );
+                    if ($memberships === []) {
+                        throw new BadRequest(
+                            'Every selected Work Block must contain at least one Work Item.'
+                        );
+                    }
+
+                    $seconds = array_sum(array_map(
+                        static fn (Entity $membership): int =>
+                            (int) $membership->get('effectiveEstimateSeconds'),
+                        $memberships
+                    ));
+                    $end = $start->modify("+$seconds seconds");
+                    $run = $this->entityManager->createEntity(self::BLOCK_RUN, [
+                        'name' => $template->get('name'),
+                        'workPackageId' => $package->getId(),
+                        'definitionId' => $template->getId(),
+                        'status' => 'Planned',
+                        'milestoneKind' => $template->get('milestoneKind') ?? 'Normal',
+                        'sequence' => $sequence,
+                        'totalEstimateSeconds' => $seconds,
+                    ]);
+                    $block = $this->entityManager->createEntity(self::BLOCK, [
+                        'name' => $template->get('name'),
+                        'status' => 'Planned',
+                        'dateStart' => $start->format('Y-m-d H:i:s'),
+                        'dateEnd' => $end->format('Y-m-d H:i:s'),
+                        'workPackageId' => $package->getId(),
+                        'workBlockRunId' => $run->getId(),
+                        'templateId' => $template->getId(),
+                        'instanceId' => $instance->getId(),
+                        'activitiesSnapshot' => [],
+                        'estimatedSeconds' => $seconds,
+                        'sequence' => $sequence,
+                        'milestoneKind' => $template->get('milestoneKind') ?? 'Normal',
+                        'assignedUsersIds' => $attendeeIds,
+                    ]);
+
+                    $activityNames = [];
+                    foreach ($memberships as $membership) {
+                        $workItem = $this->get(
+                            self::WORK_ITEM,
+                            (string) $membership->get('workItemId')
+                        );
+                        $activityNames[] = (string) $workItem->get('name');
+                        $this->entityManager->createEntity(self::ITEM_RUN, [
+                            'name' => $workItem->get('name'),
+                            'workBlockRunId' => $run->getId(),
+                            'sourceWorkItemId' => $workItem->getId(),
+                            'scheduledBlockId' => $block->getId(),
+                            ...WorkItemMath::snapshot(
+                                (string) $workItem->get('name'),
+                                (string) ($workItem->get('description') ?? ''),
+                                (int) $membership->get('effectiveEstimateSeconds'),
+                                (int) $membership->get('sequence')
+                            ),
+                            'status' => 'Planned',
+                        ]);
+                    }
+
+                    $block->set('activitiesSnapshot', $activityNames);
+                    $this->entityManager->saveEntity($block);
+                    $runs[] = $this->workBlockRunDto($run);
+                    $addedEstimate += $seconds;
+                    $start = $end;
+                    $sequence++;
+                }
+
+                $plannedEnd = (string) ($package->get('plannedEnd') ?? '');
+                $newPlannedEnd = $start->format('Y-m-d H:i:s');
+                $package->setMultiple([
+                    'plannedEnd' => $plannedEnd === '' || $newPlannedEnd > $plannedEnd
+                        ? $newPlannedEnd
+                        : $plannedEnd,
+                    'totalEstimateSeconds' =>
+                        (int) $package->get('totalEstimateSeconds') + $addedEstimate,
+                    'revision' => (int) $package->get('revision') + 1,
+                ]);
+                $this->entityManager->saveEntity($package);
+                $this->recomputePackage($package->getId());
+
+                return [
+                    'package' => $this->packageDto($package),
+                    'workBlocks' => $runs,
+                ];
+            }
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function doCreatePackage(array $input): array
     {
         $instance = $this->get(self::INSTANCE, $this->requiredString($input, 'instanceId'));
         $targetType = $this->requiredString($input, 'targetType');
@@ -138,10 +768,12 @@ final class ApplicationService
             return $this->packageDto($existing);
         }
 
-        $templateIds = $input['templateIds'] ?? $instance->get('defaultWorkBlockIds') ?? [];
+        $templateIds = isset($input['templateIds']) && is_array($input['templateIds']) && $input['templateIds'] !== []
+            ? $input['templateIds']
+            : $this->defaultWorkBlockIds($instance);
         $attendeeIds = $this->stringList($input['attendeeIds'] ?? []);
 
-        if (!is_array($templateIds) || $templateIds === []) {
+        if ($templateIds === []) {
             throw new BadRequest('At least one Work Block template is required.');
         }
 
@@ -178,24 +810,71 @@ final class ApplicationService
                 throw new BadRequest('Invalid Work Block template.');
             }
 
-            $seconds = (int) $template->get('estimatedSeconds');
+            $memberships = iterator_to_array(
+                $this->entityManager->getRDBRepository(self::BLOCK_ITEM)
+                    ->where(['workBlockId' => $template->getId()])
+                    ->order('sequence')
+                    ->find()
+            );
+
+            if ($memberships === []) {
+                throw new BadRequest('Every selected Work Block must contain at least one Work Item.');
+            }
+
+            $seconds = array_sum(array_map(
+                static fn (Entity $membership): int => (int) $membership->get('effectiveEstimateSeconds'),
+                $memberships
+            ));
             $end = $start->modify("+$seconds seconds");
-            $this->entityManager->createEntity(self::BLOCK, [
+            $run = $this->entityManager->createEntity(self::BLOCK_RUN, [
+                'name' => $template->get('name'),
+                'workPackageId' => $package->getId(),
+                'definitionId' => $template->getId(),
+                'status' => 'Planned',
+                'milestoneKind' => $template->get('milestoneKind') ?? 'Normal',
+                'sequence' => $sequence,
+                'totalEstimateSeconds' => $seconds,
+            ]);
+            $block = $this->entityManager->createEntity(self::BLOCK, [
                 'name' => $template->get('name'),
                 'status' => 'Planned',
                 'dateStart' => $start->format('Y-m-d H:i:s'),
                 'dateEnd' => $end->format('Y-m-d H:i:s'),
                 'workPackageId' => $package->getId(),
+                'workBlockRunId' => $run->getId(),
                 'templateId' => $template->getId(),
                 'instanceId' => $instance->getId(),
-                'activitiesSnapshot' => $template->get('activities') ?? [],
+                'activitiesSnapshot' => [],
                 'estimatedSeconds' => $seconds,
-                'sequence' => $sequence++,
+                'sequence' => $sequence,
                 'milestoneKind' => $template->get('milestoneKind') ?? 'Normal',
-                'usersIds' => $attendeeIds,
+                'assignedUsersIds' => $attendeeIds,
             ]);
+
+            $activityNames = [];
+            foreach ($memberships as $membership) {
+                $workItem = $this->get(self::WORK_ITEM, (string) $membership->get('workItemId'));
+                $activityNames[] = (string) $workItem->get('name');
+                $this->entityManager->createEntity(self::ITEM_RUN, [
+                    'name' => $workItem->get('name'),
+                    'workBlockRunId' => $run->getId(),
+                    'sourceWorkItemId' => $workItem->getId(),
+                    'scheduledBlockId' => $block->getId(),
+                    ...WorkItemMath::snapshot(
+                        (string) $workItem->get('name'),
+                        (string) ($workItem->get('description') ?? ''),
+                        (int) $membership->get('effectiveEstimateSeconds'),
+                        (int) $membership->get('sequence')
+                    ),
+                    'status' => 'Planned',
+                ]);
+            }
+
+            $block->set('activitiesSnapshot', $activityNames);
+            $this->entityManager->saveEntity($block);
             $estimateTotal += $seconds;
             $start = $end;
+            $sequence++;
         }
 
         $package->setMultiple([
@@ -225,7 +904,7 @@ final class ApplicationService
         }
 
         if (isset($input['attendeeIds'])) {
-            $block->set('usersIds', $this->stringList($input['attendeeIds'], true));
+            $block->set('assignedUsersIds', $this->stringList($input['attendeeIds'], true));
         }
 
         $time = TimeMath::calculate((string) $block->get('dateStart'), (string) $block->get('dateEnd'), 1);
@@ -252,7 +931,110 @@ final class ApplicationService
      * @param array<string, mixed> $input
      * @return array<string, mixed>
      */
+    public function rescheduleRemaining(string $id, array $input): array
+    {
+        return $this->entityManager->getTransactionManager()->run(
+            function () use ($id, $input): array {
+                $block = $this->get(self::BLOCK, $id);
+                $package = $this->get(self::PACKAGE, (string) $block->get('workPackageId'));
+                $this->target(
+                    (string) $package->get('targetType'),
+                    (string) $package->get('targetId'),
+                    true
+                );
+                $runId = (string) $block->get('workBlockRunId');
+                if ($runId === '') {
+                    throw new BadRequest('Legacy Work Blocks must be migrated before rescheduling.');
+                }
+
+                $remaining = [];
+                $remainingValues = [];
+                foreach ($this->entityManager->getRDBRepository(self::ITEM_RUN)
+                    ->where([
+                        'workBlockRunId' => $runId,
+                        'status' => ['Planned', 'In Progress'],
+                    ])
+                    ->order('sequence')
+                    ->find() as $itemRun) {
+                    $remaining[] = $itemRun;
+                    $remainingValues[] = [
+                        'estimatedSeconds' => (int) $itemRun->get('estimatedSeconds'),
+                        'actualElapsedSeconds' => (int) $itemRun->get('actualElapsedSeconds'),
+                        'status' => (string) $itemRun->get('status'),
+                    ];
+                }
+
+                if ($remaining === []) {
+                    throw new Conflict('This Work Block has no unfinished Work Items.');
+                }
+                $remainingSeconds = WorkItemMath::remainingSeconds($remainingValues);
+
+                $start = new DateTimeImmutable($this->requiredString($input, 'dateStart'));
+                $end = $start->modify("+$remainingSeconds seconds");
+                $attendeeIds = isset($input['attendeeIds'])
+                    ? $this->stringList($input['attendeeIds'], true)
+                    : (array) ($block->get('assignedUsersIds') ?? []);
+                $newBlock = $this->entityManager->createEntity(self::BLOCK, [
+                    'name' => $block->get('name') . ' — Continued',
+                    'status' => 'Planned',
+                    'dateStart' => $start->format('Y-m-d H:i:s'),
+                    'dateEnd' => $end->format('Y-m-d H:i:s'),
+                    'workPackageId' => $package->getId(),
+                    'workBlockRunId' => $runId,
+                    'templateId' => $block->get('templateId'),
+                    'instanceId' => $block->get('instanceId'),
+                    'activitiesSnapshot' => array_map(
+                        static fn (Entity $item): string => (string) $item->get('nameSnapshot'),
+                        $remaining
+                    ),
+                    'estimatedSeconds' => $remainingSeconds,
+                    'sequence' => $block->get('sequence'),
+                    'milestoneKind' => $block->get('milestoneKind'),
+                    'assignedUsersIds' => $attendeeIds,
+                ]);
+
+                foreach ($remaining as $itemRun) {
+                    $itemRun->set('scheduledBlockId', $newBlock->getId());
+                    $this->entityManager->saveEntity($itemRun);
+                }
+
+                $block->setMultiple([
+                    'status' => $this->sumBlockElapsed($block->getId()) > 0
+                        ? 'Completed'
+                        : 'Cancelled',
+                    'completedAt' => DateTime::getSystemNowString(),
+                ]);
+                $this->entityManager->saveEntity($block);
+
+                $warnings = $this->scheduleWarnings($newBlock, $remainingSeconds);
+
+                return [
+                    'block' => $this->entityDto($newBlock),
+                    'workBlock' => $this->workBlockRunDto($this->get(self::BLOCK_RUN, $runId)),
+                    'warnings' => $warnings,
+                ];
+            }
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
     public function reportIn(array $input): array
+    {
+        return $this->entityManager->getTransactionManager()->run(
+            fn (): array => $this->doReportIn($input)
+        );
+    }
+
+    /**
+     * Timer-first alias for the report-in compatibility operation.
+     *
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    public function startTimer(array $input): array
     {
         return $this->entityManager->getTransactionManager()->run(
             fn (): array => $this->doReportIn($input)
@@ -285,13 +1067,32 @@ final class ApplicationService
             throw new Conflict('This package already has an active session.');
         }
 
-        $attendees = $this->stringList($input['attendeeIds'] ?? []);
+        $itemRun = isset($input['workItemRunId'])
+            ? $this->get(self::ITEM_RUN, $this->requiredString($input, 'workItemRunId'))
+            : $this->nextWorkItemRun($package->getId());
+        $run = $this->get(self::BLOCK_RUN, (string) $itemRun->get('workBlockRunId'));
+
+        if ($run->get('workPackageId') !== $package->getId()) {
+            throw new BadRequest('The selected Work Item does not belong to this target.');
+        }
+
+        if (in_array($itemRun->get('status'), ['Completed', 'Cancelled'], true)) {
+            throw new Conflict('The selected Work Item is not available for time logging.');
+        }
+
+        $block = $this->get(self::BLOCK, (string) $itemRun->get('scheduledBlockId'));
+        $attendees = $this->stringList(
+            $input['attendeeIds'] ?? [$this->user->getId()]
+        );
         $this->assertAttendeesAvailable($attendees);
         $now = DateTime::getSystemNowString();
         $early = $now < (string) $package->get('scheduledStart');
         $session = $this->entityManager->createEntity(self::SESSION, [
-            'name' => 'Session: ' . $package->get('name'),
+            'name' => 'Timer: ' . $itemRun->get('nameSnapshot'),
             'workPackageId' => $package->getId(),
+            'workBlockRunId' => $run->getId(),
+            'workItemRunId' => $itemRun->getId(),
+            'scheduledBlockId' => $block->getId(),
             'status' => 'Active',
             'startedAt' => $now,
             'lastCheckpointAt' => $now,
@@ -300,19 +1101,78 @@ final class ApplicationService
             'clientActionId' => $clientActionId,
         ]);
 
-        $next = $this->entityManager->getRDBRepository(self::BLOCK)
-            ->where(['workPackageId' => $package->getId(), 'status!=' => 'Completed'])
-            ->order('sequence')
-            ->findOne();
-
-        if ($next) {
-            $next->set('status', 'In Progress');
-            $this->entityManager->saveEntity($next);
-        }
+        $itemRun->set('status', 'In Progress');
+        $run->set('status', 'In Progress');
+        $block->set('status', 'In Progress');
+        $this->entityManager->saveEntity($itemRun);
+        $this->entityManager->saveEntity($run);
+        $this->entityManager->saveEntity($block);
 
         $this->syncTargetStatus($package, 'inProgressStatus');
 
         return $this->sessionDto($session);
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    public function stopTimer(string $sessionId, array $input): array
+    {
+        return $this->entityManager->getTransactionManager()->run(
+            fn (): array => $this->doStopTimer($sessionId, $input)
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function doStopTimer(string $sessionId, array $input): array
+    {
+        $duplicate = $this->entryByAction($input['clientActionId'] ?? null);
+        if ($duplicate) {
+            return ['entry' => $this->entityDto($duplicate), 'duplicate' => true];
+        }
+
+        $session = $this->activeSessionById($sessionId);
+        $package = $this->get(self::PACKAGE, (string) $session->get('workPackageId'));
+        $itemRun = $this->get(self::ITEM_RUN, (string) $session->get('workItemRunId'));
+        $block = $this->get(self::BLOCK, (string) $session->get('scheduledBlockId'));
+        $now = DateTime::getSystemNowString();
+        $entry = $this->createEntry(
+            $package,
+            $block,
+            (string) $session->get('lastCheckpointAt'),
+            $now,
+            (array) $session->get('attendeeIds'),
+            'Interactive',
+            $input,
+            $session,
+            $itemRun
+        );
+
+        $complete = (bool) ($input['complete'] ?? false);
+        $itemRun->set('status', $complete ? 'Completed' : 'In Progress');
+        $itemRun->set('completedAt', $complete ? $now : null);
+        $session->setMultiple([
+            'status' => 'Completed',
+            'endedAt' => $now,
+            'lastCheckpointAt' => $now,
+        ]);
+        $this->entityManager->saveEntity($itemRun);
+        $this->entityManager->saveEntity($session);
+        $this->recomputeWorkItemRun($itemRun);
+        $this->recomputeWorkBlockRun((string) $itemRun->get('workBlockRunId'));
+        $this->recomputePackage($package->getId());
+
+        return [
+            'entry' => $this->entityDto($entry),
+            'session' => $this->sessionDto($session),
+            'workBlock' => $this->workBlockRunDto(
+                $this->get(self::BLOCK_RUN, (string) $itemRun->get('workBlockRunId'))
+            ),
+        ];
     }
 
     /**
@@ -337,7 +1197,13 @@ final class ApplicationService
             return ['entry' => $this->entityDto($duplicate), 'duplicate' => true];
         }
         $session = $this->activeSessionById($sessionId);
-        $block = $this->get(self::BLOCK, $this->requiredString($input, 'blockId'));
+        $itemRunId = $session->get('workItemRunId');
+        $itemRun = is_string($itemRunId) && $itemRunId !== ''
+            ? $this->get(self::ITEM_RUN, $itemRunId)
+            : null;
+        $block = $itemRun
+            ? $this->get(self::BLOCK, (string) $itemRun->get('scheduledBlockId'))
+            : $this->get(self::BLOCK, $this->requiredString($input, 'blockId'));
         $now = DateTime::getSystemNowString();
         $entry = $this->createEntry(
             $this->get(self::PACKAGE, (string) $session->get('workPackageId')),
@@ -347,12 +1213,20 @@ final class ApplicationService
             (array) $session->get('attendeeIds'),
             'Interactive',
             $input,
-            $session
+            $session,
+            $itemRun
         );
 
-        $block->setMultiple(['status' => 'Completed', 'completedAt' => $now]);
+        if ($itemRun) {
+            $itemRun->setMultiple(['status' => 'Completed', 'completedAt' => $now]);
+            $this->entityManager->saveEntity($itemRun);
+            $this->recomputeWorkItemRun($itemRun);
+            $this->recomputeWorkBlockRun((string) $itemRun->get('workBlockRunId'));
+        } else {
+            $block->setMultiple(['status' => 'Completed', 'completedAt' => $now]);
+            $this->entityManager->saveEntity($block);
+        }
         $session->setMultiple(['lastCheckpointAt' => $now, 'revision' => (int) $session->get('revision') + 1]);
-        $this->entityManager->saveEntity($block);
         $this->entityManager->saveEntity($session);
         $this->recomputePackage((string) $session->get('workPackageId'));
 
@@ -431,6 +1305,7 @@ final class ApplicationService
         }
 
         $entries = [];
+        $affectedRunIds = [];
         foreach ($segments as $index => $segment) {
             $block = $this->get(self::BLOCK, $this->requiredString($segment, 'blockId'));
             if ($block->get('workPackageId') !== $package->getId()) {
@@ -441,6 +1316,14 @@ final class ApplicationService
                     ? $input['clientActionId']
                     : $input['clientActionId'] . '-' . $index;
             }
+            $sessionItemRunId = $session->get('workItemRunId');
+            $itemRun = is_string($sessionItemRunId) && $sessionItemRunId !== ''
+                ? $this->get(self::ITEM_RUN, $sessionItemRunId)
+                : null;
+            if ($itemRun && $itemRun->get('scheduledBlockId') !== $block->getId()) {
+                $itemRun = null;
+            }
+            $itemRun ??= $this->firstWorkItemRunForBlock($block->getId());
             $entries[] = $this->entityDto($this->createEntry(
                 $package,
                 $block,
@@ -449,14 +1332,31 @@ final class ApplicationService
                 (array) $session->get('attendeeIds'),
                 'Interactive',
                 $segment,
-                $session
+                $session,
+                $itemRun
             ));
-            $block->setMultiple(['status' => 'Completed', 'completedAt' => $this->requiredString($segment, 'end')]);
-            $this->entityManager->saveEntity($block);
+            if ($itemRun) {
+                $itemRun->setMultiple([
+                    'status' => 'Completed',
+                    'completedAt' => $this->requiredString($segment, 'end'),
+                ]);
+                $this->entityManager->saveEntity($itemRun);
+                $this->recomputeWorkItemRun($itemRun);
+                $affectedRunIds[(string) $itemRun->get('workBlockRunId')] = true;
+            } else {
+                $block->setMultiple([
+                    'status' => 'Completed',
+                    'completedAt' => $this->requiredString($segment, 'end'),
+                ]);
+                $this->entityManager->saveEntity($block);
+            }
         }
 
         $session->setMultiple(['status' => 'Completed', 'endedAt' => DateTime::getSystemNowString()]);
         $this->entityManager->saveEntity($session);
+        foreach (array_keys($affectedRunIds) as $runId) {
+            $this->recomputeWorkBlockRun($runId);
+        }
         $this->recomputePackage($package->getId());
 
         return ['entries' => $entries, 'session' => $this->sessionDto($session)];
@@ -485,9 +1385,16 @@ final class ApplicationService
         }
         $package = $this->get(self::PACKAGE, $this->requiredString($input, 'packageId'));
         $block = $this->get(self::BLOCK, $this->requiredString($input, 'blockId'));
+        $itemRun = isset($input['workItemRunId'])
+            ? $this->get(self::ITEM_RUN, $this->requiredString($input, 'workItemRunId'))
+            : $this->firstWorkItemRunForBlock($block->getId());
         $this->target((string) $package->get('targetType'), (string) $package->get('targetId'), true);
 
-        if (!$package->get('scheduledStart') || $block->get('workPackageId') !== $package->getId()) {
+        if (
+            !$package->get('scheduledStart') ||
+            $block->get('workPackageId') !== $package->getId() ||
+            ($itemRun && $itemRun->get('workBlockRunId') !== $block->get('workBlockRunId'))
+        ) {
             throw new BadRequest('A scheduled package and matching block are required.');
         }
 
@@ -498,8 +1405,14 @@ final class ApplicationService
             $this->requiredString($input, 'end'),
             $this->stringList($input['attendeeIds'] ?? []),
             'Manual',
-            $input
+            $input,
+            null,
+            $itemRun
         );
+        if ($itemRun) {
+            $this->recomputeWorkItemRun($itemRun);
+            $this->recomputeWorkBlockRun((string) $itemRun->get('workBlockRunId'));
+        }
         $this->recomputePackage($package->getId());
 
         return $this->entityDto($entry);
@@ -531,8 +1444,18 @@ final class ApplicationService
         $allocated = [];
 
         foreach ($blocks as $block) {
+            $package = $this->get(self::PACKAGE, (string) $block->get('workPackageId'));
+            try {
+                $this->target(
+                    (string) $package->get('targetType'),
+                    (string) $package->get('targetId'),
+                    false
+                );
+            } catch (Forbidden|NotFound) {
+                continue;
+            }
             $dto = $this->entityDto($block);
-            $dto['userIds'] = (array) ($block->get('usersIds') ?? []);
+            $dto['userIds'] = (array) ($block->get('assignedUsersIds') ?? []);
             $items[] = $dto;
             foreach ($dto['userIds'] as $userId) {
                 $allocated[$userId] = ($allocated[$userId] ?? 0) + (int) $block->get('estimatedSeconds');
@@ -604,6 +1527,15 @@ final class ApplicationService
             if (($input['userId'] ?? null) && !in_array($input['userId'], (array) $entry->get('attendeeIds'), true)) {
                 continue;
             }
+            try {
+                $this->target(
+                    (string) $package->get('targetType'),
+                    (string) $package->get('targetId'),
+                    false
+                );
+            } catch (Forbidden|NotFound) {
+                continue;
+            }
 
             $includedStart = max(
                 strtotime((string) $entry->get('dateStart')),
@@ -622,6 +1554,10 @@ final class ApplicationService
                 (array) ($entry->get('attendeeNames') ?? [])
             )));
             $block = $this->get(self::BLOCK, (string) $entry->get('scheduledBlockId'));
+            $itemRunId = $entry->get('workItemRunId');
+            $itemRun = is_string($itemRunId) && $itemRunId !== ''
+                ? $this->get(self::ITEM_RUN, $itemRunId)
+                : null;
             $items[] = array_merge($this->entityDto($entry), [
                 'includedElapsedSeconds' => $includedElapsed,
                 'includedLabourSeconds' => $includedLabour,
@@ -630,6 +1566,8 @@ final class ApplicationService
                 'accountName' => $package->get('accountNameSnapshot'),
                 'contactName' => $package->get('contactNameSnapshot'),
                 'blockName' => $block->get('name'),
+                'workItemName' => $itemRun?->get('nameSnapshot'),
+                'workItemDescription' => $itemRun?->get('descriptionSnapshot'),
                 'estimatedSeconds' => $block->get('estimatedSeconds'),
                 'activities' => $block->get('activitiesSnapshot'),
             ]);
@@ -648,14 +1586,55 @@ final class ApplicationService
         ];
     }
 
+    /** @return array<string, mixed> */
+    public function billingQueue(string $instanceId): array
+    {
+        $this->assertBillingManager();
+        $items = [];
+        foreach ($this->entityManager->getRDBRepository(self::PACKAGE)
+            ->where(['instanceId' => $instanceId])
+            ->order('plannedStart', 'DESC')
+            ->limit(500)
+            ->find() as $package) {
+            try {
+                $this->target(
+                    (string) $package->get('targetType'),
+                    (string) $package->get('targetId'),
+                    false
+                );
+            } catch (Forbidden|NotFound) {
+                continue;
+            }
+            $items[] = $this->packageDto($package);
+        }
+
+        return ['items' => $items];
+    }
+
     /**
      * @param array<string, mixed> $input
      * @return array<string, mixed>
      */
     public function billing(string $packageId, string $action, array $input): array
     {
+        return $this->entityManager->getTransactionManager()->run(
+            fn (): array => $this->doBilling($packageId, $action, $input)
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     */
+    private function doBilling(string $packageId, string $action, array $input): array
+    {
         $this->assertBillingManager();
         $package = $this->get(self::PACKAGE, $packageId);
+        $this->target(
+            (string) $package->get('targetType'),
+            (string) $package->get('targetId'),
+            in_array($action, ['mark-invoiced', 'reopen'], true)
+        );
 
         if ($action === 'preview' || $action === 'export') {
             return $this->billingData($package);
@@ -711,7 +1690,14 @@ final class ApplicationService
     public function billingExportData(string $packageId): array
     {
         $this->assertBillingManager();
-        return $this->billingData($this->get(self::PACKAGE, $packageId));
+        $package = $this->get(self::PACKAGE, $packageId);
+        $this->target(
+            (string) $package->get('targetType'),
+            (string) $package->get('targetId'),
+            false
+        );
+
+        return $this->billingData($package);
     }
 
     public function shouldAutoMarkInvoiced(): bool
@@ -764,7 +1750,8 @@ final class ApplicationService
         array $attendeeIds,
         string $mode,
         array $input,
-        ?Entity $session = null
+        ?Entity $session = null,
+        ?Entity $itemRun = null
     ): Entity {
         if ($attendeeIds === []) {
             throw new BadRequest('At least one attendee is required.');
@@ -785,8 +1772,12 @@ final class ApplicationService
             }
         }
 
-        $actual = $this->sumBlockElapsed($block->getId()) + $time['elapsedSeconds'];
-        $overrun = TimeMath::isOverrun($actual, (int) $block->get('estimatedSeconds'));
+        $actual = ($itemRun
+            ? $this->sumItemRunElapsed($itemRun->getId())
+            : $this->sumBlockElapsed($block->getId())
+        ) + $time['elapsedSeconds'];
+        $estimate = (int) ($itemRun?->get('estimatedSeconds') ?? $block->get('estimatedSeconds'));
+        $overrun = TimeMath::isOverrun($actual, $estimate);
         $reason = (string) ($input['dragReason'] ?? '');
         $note = trim((string) ($input['workNote'] ?? ''));
 
@@ -809,9 +1800,11 @@ final class ApplicationService
         }
 
         $entry = $this->entityManager->createEntity(self::ENTRY, [
-            'name' => $block->get('name') . ' — ' . $start,
+            'name' => ($itemRun?->get('nameSnapshot') ?? $block->get('name')) . ' — ' . $start,
             'workPackageId' => $package->getId(),
             'scheduledBlockId' => $block->getId(),
+            'workBlockRunId' => $itemRun?->get('workBlockRunId') ?? $block->get('workBlockRunId'),
+            'workItemRunId' => $itemRun?->getId(),
             'workSessionId' => $session?->getId(),
             'dateStart' => $start,
             'dateEnd' => $end,
@@ -819,6 +1812,7 @@ final class ApplicationService
             'labourSeconds' => $time['labourSeconds'],
             'attendeeIds' => array_values($attendeeIds),
             'attendeeNames' => $this->attendeeNames($attendeeIds),
+            'usersIds' => array_values($attendeeIds),
             'entryMode' => $mode,
             'workNote' => $note,
             'userFlagged' => (bool) ($input['userFlagged'] ?? false),
@@ -840,21 +1834,50 @@ final class ApplicationService
         $completedEstimate = 0;
         $totalEstimate = 0;
         $withTime = 0;
+        $requiredCount = 0;
 
-        foreach ($blocks as $block) {
-            $estimate = (int) $block->get('estimatedSeconds');
-            $totalEstimate += $estimate;
-            if ($block->get('status') === 'Completed') {
-                $completedEstimate += $estimate;
+        $runs = iterator_to_array($this->entityManager->getRDBRepository(self::BLOCK_RUN)
+            ->where(['workPackageId' => $packageId, 'status!=' => 'Cancelled'])
+            ->find());
+
+        if ($runs !== []) {
+            foreach ($runs as $run) {
+                $estimate = (int) $run->get('totalEstimateSeconds');
+                $totalEstimate += $estimate;
+                if ($run->get('status') === 'Completed') {
+                    $completedEstimate += $estimate;
+                }
+                foreach ($this->entityManager->getRDBRepository(self::ITEM_RUN)
+                    ->where(['workBlockRunId' => $run->getId(), 'status!=' => 'Cancelled'])
+                    ->find() as $itemRun) {
+                    $requiredCount++;
+                    if ((int) $itemRun->get('actualElapsedSeconds') > 0) {
+                        $withTime++;
+                    }
+                }
             }
-            if ($this->sumBlockElapsed($block->getId()) > 0) {
-                $withTime++;
+        } else {
+            foreach ($blocks as $block) {
+                $estimate = (int) $block->get('estimatedSeconds');
+                $totalEstimate += $estimate;
+                $requiredCount++;
+                if ($block->get('status') === 'Completed') {
+                    $completedEstimate += $estimate;
+                }
+                if ($this->sumBlockElapsed($block->getId()) > 0) {
+                    $withTime++;
+                }
             }
         }
 
         $instance = $this->get(self::INSTANCE, (string) $package->get('instanceId'));
         $target = $this->target((string) $package->get('targetType'), (string) $package->get('targetId'), false);
-        $completedStatuses = (array) ($instance->get('completedStatusList') ?? []);
+        $completedStatuses = Lifecycle::completedTargetStatusList(
+            (array) ($instance->get('completedStatusList') ?? []),
+            $instance->get('addTimeLogsTargetStatus'),
+            $instance->get('readyForBillingTargetStatus'),
+            $instance->get('invoicedTargetStatus')
+        );
         $targetCompleted = in_array($target->get((string) $instance->get('statusField')), $completedStatuses, true);
         $current = (string) $package->get('lifecycle');
         if ($current === Lifecycle::INVOICED && !$targetCompleted) {
@@ -867,7 +1890,7 @@ final class ApplicationService
         }
         $lifecycle = $current === Lifecycle::INVOICED
             ? $current
-            : Lifecycle::forCompletion($targetCompleted, (bool) $this->activeSession($packageId), count($blocks), $withTime);
+            : Lifecycle::forCompletion($targetCompleted, (bool) $this->activeSession($packageId), $requiredCount, $withTime);
 
         $package->setMultiple([
             'totalEstimateSeconds' => $totalEstimate,
@@ -899,6 +1922,31 @@ final class ApplicationService
             }
         }
         return $items;
+    }
+
+    /** @return string[] */
+    private function defaultWorkBlockIds(Entity $instance): array
+    {
+        $ids = [];
+        foreach ($this->entityManager->getRDBRepository(self::TEMPLATE)
+            ->where([
+                'instanceId' => $instance->getId(),
+                'active' => true,
+                'isDefault' => true,
+            ])
+            ->order('defaultOrder')
+            ->find() as $workBlock) {
+            $ids[] = $workBlock->getId();
+        }
+
+        if ($ids !== []) {
+            return $ids;
+        }
+
+        return array_values(array_filter(
+            (array) ($instance->get('defaultWorkBlockIds') ?? []),
+            'is_string'
+        ));
     }
 
     private function target(string $entityType, string $id, bool $edit): Entity
@@ -941,6 +1989,50 @@ final class ApplicationService
         return $session;
     }
 
+    private function nextWorkItemRun(string $packageId): Entity
+    {
+        foreach ($this->entityManager->getRDBRepository(self::BLOCK_RUN)
+            ->where([
+                'workPackageId' => $packageId,
+                'status' => ['Planned', 'In Progress'],
+            ])
+            ->order('sequence')
+            ->find() as $run) {
+            $item = $this->entityManager->getRDBRepository(self::ITEM_RUN)
+                ->where([
+                    'workBlockRunId' => $run->getId(),
+                    'status' => ['Planned', 'In Progress'],
+                ])
+                ->order('sequence')
+                ->findOne();
+
+            if ($item) {
+                return $item;
+            }
+        }
+
+        throw new BadRequest('No Work Item is available for time logging.');
+    }
+
+    private function firstWorkItemRunForBlock(string $blockId): ?Entity
+    {
+        $block = $this->get(self::BLOCK, $blockId);
+        $runId = $block->get('workBlockRunId');
+
+        if (!is_string($runId) || $runId === '') {
+            return null;
+        }
+
+        return $this->entityManager->getRDBRepository(self::ITEM_RUN)
+            ->where([
+                'workBlockRunId' => $runId,
+                'scheduledBlockId' => $blockId,
+                'status!=' => 'Cancelled',
+            ])
+            ->order('sequence')
+            ->findOne();
+    }
+
     /** @param string[] $attendeeIds */
     private function assertAttendeesAvailable(array $attendeeIds): void
     {
@@ -977,6 +2069,92 @@ final class ApplicationService
         return $sum;
     }
 
+    private function sumItemRunElapsed(string $itemRunId): int
+    {
+        $sum = 0;
+        foreach ($this->entityManager->getRDBRepository(self::ENTRY)
+            ->where(['workItemRunId' => $itemRunId])
+            ->find() as $entry) {
+            $sum += (int) $entry->get('elapsedSeconds');
+        }
+
+        return $sum;
+    }
+
+    private function recomputeWorkItemRun(Entity $itemRun): void
+    {
+        $elapsed = 0;
+        $labour = 0;
+        foreach ($this->entityManager->getRDBRepository(self::ENTRY)
+            ->where(['workItemRunId' => $itemRun->getId()])
+            ->find() as $entry) {
+            $elapsed += (int) $entry->get('elapsedSeconds');
+            $labour += (int) $entry->get('labourSeconds');
+        }
+
+        $itemRun->setMultiple([
+            'actualElapsedSeconds' => $elapsed,
+            'actualLabourSeconds' => $labour,
+        ]);
+        $this->entityManager->saveEntity($itemRun);
+    }
+
+    private function recomputeWorkBlockRun(string $runId): void
+    {
+        $run = $this->get(self::BLOCK_RUN, $runId);
+        $total = 0;
+        $elapsed = 0;
+        $labour = 0;
+        $hasProgress = false;
+        $allComplete = true;
+        $progressItems = [];
+
+        foreach ($this->entityManager->getRDBRepository(self::ITEM_RUN)
+            ->where(['workBlockRunId' => $runId, 'status!=' => 'Cancelled'])
+            ->find() as $itemRun) {
+            $estimate = (int) $itemRun->get('estimatedSeconds');
+            $total += $estimate;
+            $elapsed += (int) $itemRun->get('actualElapsedSeconds');
+            $labour += (int) $itemRun->get('actualLabourSeconds');
+            $status = (string) $itemRun->get('status');
+            $progressItems[] = [
+                'estimatedSeconds' => $estimate,
+                'status' => $status,
+            ];
+            if ($status !== 'Completed') {
+                $allComplete = false;
+            }
+            if ($status === 'In Progress' || (int) $itemRun->get('actualElapsedSeconds') > 0) {
+                $hasProgress = true;
+            }
+        }
+
+        $status = $allComplete && $total > 0
+            ? 'Completed'
+            : ($hasProgress ? 'In Progress' : 'Planned');
+        $run->setMultiple([
+            'status' => $status,
+            'totalEstimateSeconds' => $total,
+            'completionPercent' => WorkItemMath::completionPercent($progressItems),
+            'actualElapsedSeconds' => $elapsed,
+            'actualLabourSeconds' => $labour,
+            'revision' => (int) $run->get('revision') + 1,
+        ]);
+        $this->entityManager->saveEntity($run);
+
+        if ($status === 'Completed') {
+            foreach ($this->entityManager->getRDBRepository(self::BLOCK)
+                ->where(['workBlockRunId' => $runId, 'status!=' => 'Cancelled'])
+                ->find() as $block) {
+                $block->setMultiple([
+                    'status' => 'Completed',
+                    'completedAt' => DateTime::getSystemNowString(),
+                ]);
+                $this->entityManager->saveEntity($block);
+            }
+        }
+    }
+
     private function entryByAction(mixed $clientActionId): ?Entity
     {
         if (!is_string($clientActionId) || $clientActionId === '') {
@@ -1003,9 +2181,15 @@ final class ApplicationService
         $labour = 0;
         foreach ($this->entriesForPackage($package->getId()) as $entry) {
             $block = $this->get(self::BLOCK, (string) $entry->get('scheduledBlockId'));
+            $itemRunId = $entry->get('workItemRunId');
+            $itemRun = is_string($itemRunId) && $itemRunId !== ''
+                ? $this->get(self::ITEM_RUN, $itemRunId)
+                : null;
             $items[] = [
                 'date' => substr((string) $entry->get('dateStart'), 0, 10),
                 'blockName' => $block->get('name'),
+                'workItemName' => $itemRun?->get('nameSnapshot'),
+                'workItemDescription' => $itemRun?->get('descriptionSnapshot'),
                 'activities' => $block->get('activitiesSnapshot') ?? [],
                 'start' => $entry->get('dateStart'),
                 'end' => $entry->get('dateEnd'),
@@ -1159,6 +2343,27 @@ final class ApplicationService
         }
     }
 
+    private function settingsEntity(): Entity
+    {
+        $settings = $this->entityManager->getRDBRepository(self::SETTINGS)->findOne();
+
+        if ($settings) {
+            return $settings;
+        }
+
+        if (!$this->user->isAdmin()) {
+            throw new NotFound('Resource Management Settings are not initialized.');
+        }
+
+        return $this->entityManager->createEntity(self::SETTINGS, [
+            'name' => 'Elevate Resource Management',
+            'operationsManagerId' => $this->user->getId(),
+            'billingAdministratorId' => $this->user->getId(),
+            'autoMarkInvoicedOnExport' => false,
+            'schemaVersion' => 2,
+        ]);
+    }
+
     /** @param array<string, mixed> $input */
     private function assertRevision(Entity $entity, array $input): void
     {
@@ -1175,6 +2380,45 @@ final class ApplicationService
             throw new BadRequest("$key is required.");
         }
         return $value;
+    }
+
+    private function durationSeconds(mixed $value): int
+    {
+        if (is_int($value) || is_numeric($value)) {
+            $seconds = (int) $value;
+
+            if (!Duration::isQuarterHour($seconds)) {
+                throw new BadRequest('Estimated time must use 15-minute increments up to 24 hours.');
+            }
+
+            return $seconds;
+        }
+
+        if (is_object($value)) {
+            $value = (array) $value;
+        }
+
+        if (!is_array($value)) {
+            throw new BadRequest('Estimated time is required.');
+        }
+
+        try {
+            return Duration::fromParts(
+                (int) ($value['hours'] ?? -1),
+                (int) ($value['minutes'] ?? -1)
+            );
+        } catch (InvalidArgumentException $e) {
+            throw new BadRequest($e->getMessage());
+        }
+    }
+
+    private function optionalDurationSeconds(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return $this->durationSeconds($value);
     }
 
     /** @return string[] */
@@ -1205,7 +2449,86 @@ final class ApplicationService
     /** @return array<string, mixed> */
     private function sessionDto(Entity $session): array
     {
-        return $this->entityDto($session);
+        return array_merge($this->entityDto($session), [
+            'attendeeNames' => $this->resourceNames(
+                (array) ($session->get('attendeeIds') ?? [])
+            ),
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function workBlockDefinitionDto(Entity $workBlock): array
+    {
+        $items = [];
+        foreach ($this->entityManager->getRDBRepository(self::BLOCK_ITEM)
+            ->where(['workBlockId' => $workBlock->getId()])
+            ->order('sequence')
+            ->find() as $membership) {
+            $workItem = $this->get(self::WORK_ITEM, (string) $membership->get('workItemId'));
+            $items[] = [
+                'id' => $membership->getId(),
+                'workItemId' => $workItem->getId(),
+                'name' => $workItem->get('name'),
+                'description' => $workItem->get('description'),
+                'defaultEstimateSeconds' => $workItem->get('defaultEstimateSeconds'),
+                'estimateOverrideSeconds' => $membership->get('estimateOverrideSeconds'),
+                'effectiveEstimateSeconds' => $membership->get('effectiveEstimateSeconds'),
+                'sequence' => $membership->get('sequence'),
+            ];
+        }
+
+        return array_merge($this->entityDto($workBlock), ['items' => $items]);
+    }
+
+    /** @return array<string, mixed> */
+    private function workBlockRunDto(Entity $run): array
+    {
+        $items = [];
+        foreach ($this->entityManager->getRDBRepository(self::ITEM_RUN)
+            ->where(['workBlockRunId' => $run->getId(), 'status!=' => 'Cancelled'])
+            ->order('sequence')
+            ->find() as $item) {
+            $items[] = $this->entityDto($item);
+        }
+
+        $schedules = [];
+        foreach ($this->entityManager->getRDBRepository(self::BLOCK)
+            ->where(['workBlockRunId' => $run->getId(), 'status!=' => 'Cancelled'])
+            ->order('dateStart')
+            ->find() as $block) {
+            $dto = $this->entityDto($block);
+            $dto['userIds'] = (array) ($block->get('assignedUsersIds') ?? []);
+            $dto['userNames'] = $this->resourceNames($dto['userIds']);
+            $schedules[] = $dto;
+        }
+
+        return array_merge($this->entityDto($run), [
+            'items' => $items,
+            'schedules' => $schedules,
+        ]);
+    }
+
+    /**
+     * Resolve display names without invalidating historical assignments when a
+     * user has since been disabled.
+     *
+     * @param string[] $ids
+     * @return string[]
+     */
+    private function resourceNames(array $ids): array
+    {
+        $names = [];
+        foreach ($ids as $id) {
+            if (!is_string($id)) {
+                continue;
+            }
+            $user = $this->entityManager->getRDBRepositoryByClass(User::class)->getById($id);
+            if ($user) {
+                $names[] = (string) $user->get('name');
+            }
+        }
+
+        return $names;
     }
 
     /**
@@ -1235,7 +2558,7 @@ final class ApplicationService
     private function scheduleWarnings(Entity $block, int $elapsedSeconds): array
     {
         $warnings = [];
-        $userIds = (array) ($block->get('usersIds') ?? []);
+        $userIds = (array) ($block->get('assignedUsersIds') ?? []);
 
         if ($userIds === []) {
             $warnings[] = ['type' => 'Unassigned', 'message' => 'The Work Block has no assigned resource.'];
@@ -1262,7 +2585,7 @@ final class ApplicationService
                 'dateEnd>' => $block->get('dateStart'),
                 'status!=' => 'Cancelled',
             ])->find() as $other) {
-                if (in_array($userId, (array) ($other->get('usersIds') ?? []), true)) {
+                if (in_array($userId, (array) ($other->get('assignedUsersIds') ?? []), true)) {
                     $warnings[] = ['type' => 'Overlap', 'message' => 'A resource is already assigned to an overlapping Work Block.'];
                     break;
                 }

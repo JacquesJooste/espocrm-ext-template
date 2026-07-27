@@ -1,5 +1,47 @@
 [
     {
+        "route": "/ElevateResourceManagement/settings",
+        "method": "get",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "settings"}
+    },
+    {
+        "route": "/ElevateResourceManagement/permissions",
+        "method": "get",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "permissions"}
+    },
+    {
+        "route": "/ElevateResourceManagement/settings",
+        "method": "put",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "updateSettings"}
+    },
+    {
+        "route": "/ElevateResourceManagement/my-work",
+        "method": "get",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "myWork"}
+    },
+    {
+        "route": "/ElevateResourceManagement/work-blocks/:id/composition",
+        "method": "get",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "workBlockComposition"}
+    },
+    {
+        "route": "/ElevateResourceManagement/work-blocks",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "createWorkBlock"}
+    },
+    {
+        "route": "/ElevateResourceManagement/work-blocks/:id",
+        "method": "put",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "updateWorkBlockDefinition"}
+    },
+    {
         "route": "/ElevateResourceManagement/context/:entityType/:id",
         "method": "get",
         "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
@@ -12,16 +54,46 @@
         "params": {"operation": "contextBulk"}
     },
     {
+        "route": "/ElevateResourceManagement/rollups/:entityType/:id",
+        "method": "get",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "rollup"}
+    },
+    {
         "route": "/ElevateResourceManagement/packages",
         "method": "post",
         "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
         "params": {"operation": "createPackage"}
     },
     {
+        "route": "/ElevateResourceManagement/packages/:id/work-blocks",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "attachWorkBlocks"}
+    },
+    {
         "route": "/ElevateResourceManagement/scheduled-blocks/:id",
         "method": "put",
         "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
         "params": {"operation": "updateScheduledBlock"}
+    },
+    {
+        "route": "/ElevateResourceManagement/scheduled-blocks/:id/reschedule-remaining",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "rescheduleRemaining"}
+    },
+    {
+        "route": "/ElevateResourceManagement/timers/start",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "startTimer"}
+    },
+    {
+        "route": "/ElevateResourceManagement/timers/:id/stop",
+        "method": "post",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "stopTimer"}
     },
     {
         "route": "/ElevateResourceManagement/sessions/report-in",
@@ -58,6 +130,12 @@
         "method": "post",
         "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
         "params": {"operation": "report"}
+    },
+    {
+        "route": "/ElevateResourceManagement/billing-queue/:id",
+        "method": "get",
+        "actionClassName": "Espo\\Modules\\ElevateResourceManagement\\Api\\Endpoint",
+        "params": {"operation": "billingQueue"}
     },
     {
         "route": "/ElevateResourceManagement/billing/:id/export/:format",

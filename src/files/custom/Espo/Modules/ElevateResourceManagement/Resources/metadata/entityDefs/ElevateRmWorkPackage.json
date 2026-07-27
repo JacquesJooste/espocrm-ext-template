@@ -22,6 +22,7 @@
   "links": {
     "instance": {"type":"belongsTo","entity":"ElevateRmInstance"},
     "scheduledBlocks": {"type":"hasMany","entity":"ElevateRmScheduledBlock","foreign":"workPackage"},
+    "workBlockRuns": {"type":"hasMany","entity":"ElevateRmWorkBlockRun","foreign":"workPackage"},
     "sessions": {"type":"hasMany","entity":"ElevateRmWorkSession","foreign":"workPackage"},
     "timeEntries": {"type":"hasMany","entity":"ElevateRmTimeEntry","foreign":"workPackage"},
     "billingSnapshots": {"type":"hasMany","entity":"ElevateRmBillingSnapshot","foreign":"workPackage"}
