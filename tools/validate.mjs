@@ -43,6 +43,7 @@ for (const required of [
     'src/files/custom/Espo/Modules/ElevateResourceManagement/Resources/metadata/entityDefs/ElevateRmWorkBlockRun.json',
     'src/files/custom/Espo/Modules/ElevateResourceManagement/Resources/metadata/entityDefs/ElevateRmWorkItemRun.json',
     'src/files/custom/Espo/Modules/ElevateResourceManagement/Domain/LegacyMigration.php',
+    'src/files/client/custom/modules/elevate-resource-management/src/utils/fetch-all-records.js',
     'src/files/client/custom/modules/elevate-resource-management/src/views/workspace.js',
     'src/scripts/BeforeInstall.php',
     'src/scripts/AfterInstall.php',
@@ -130,6 +131,20 @@ for (const file of (await walk(clientModuleRoot)).filter(file => file.endsWith('
         failures.push(
             `${path.relative(root, file)}: legacy AMD source would produce an anonymous bundled module`
         );
+    }
+
+    if (/^\s*import\s+.+\s+from\s+['"]\.\.?\//m.test(source)) {
+        failures.push(
+            `${path.relative(root, file)}: bundled EspoCRM modules must use absolute module IDs`
+        );
+    }
+
+    for (const match of source.matchAll(/maxSize\s*:\s*(\d+)/g)) {
+        if (Number(match[1]) > 200) {
+            failures.push(
+                `${path.relative(root, file)}: record-list maxSize exceeds EspoCRM's 200-record limit`
+            );
+        }
     }
 }
 

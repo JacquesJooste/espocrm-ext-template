@@ -1,4 +1,6 @@
 import View from 'view';
+import {fetchAllRecords} from
+    'elevate-resource-management:utils/fetch-all-records';
 
 export default class extends View {
     templateContent = `
@@ -45,12 +47,10 @@ export default class extends View {
             this.tab = 'my-work';
         }
         if (this.permissions.manager) {
-            const response = await Espo.Ajax.getRequest('ElevateRmInstance', {
+            this.instances = await fetchAllRecords('ElevateRmInstance', {
                 where: [{type: 'notEquals', attribute: 'status', value: 'Archived'}],
-                maxSize: 200,
                 orderBy: 'name',
             });
-            this.instances = response.list || [];
             if (!this.selectedInstanceId && this.instances.length) {
                 this.selectedInstanceId = this.instances[0].id;
             }
@@ -106,22 +106,20 @@ export default class extends View {
                 </div>${this.entriesTable(report.items)}`;
             } else if (this.tab === 'library') {
                 const [workItems, workBlocks] = await Promise.all([
-                    Espo.Ajax.getRequest('ElevateRmWorkItem', {
-                        maxSize: 500,
+                    fetchAllRecords('ElevateRmWorkItem', {
                         orderBy: 'name',
                     }),
-                    Espo.Ajax.getRequest('ElevateRmWorkBlockTemplate', {
+                    fetchAllRecords('ElevateRmWorkBlockTemplate', {
                         where: [{
                             type: 'equals',
                             attribute: 'instanceId',
                             value: this.selectedInstanceId,
                         }],
-                        maxSize: 500,
                         orderBy: 'defaultOrder',
                     }),
                 ]);
-                this.workItems = workItems.list || [];
-                this.workBlocks = workBlocks.list || [];
+                this.workItems = workItems;
+                this.workBlocks = workBlocks;
                 this.content = this.libraryContent();
             } else if (this.tab === 'billing') {
                 const packages = await Espo.Ajax.getRequest(
@@ -138,15 +136,13 @@ export default class extends View {
     }
 
     async loadUsers() {
-        const response = await Espo.Ajax.getRequest('User', {
+        return fetchAllRecords('User', {
             where: [{type: 'and', value: [
                 {type: 'equals', attribute: 'isActive', value: true},
                 {type: 'in', attribute: 'type', value: ['regular', 'admin']},
             ]}],
-            maxSize: 500,
             orderBy: 'name',
         });
-        return response.list || [];
     }
 
     afterWorkspaceRender() {

@@ -16,6 +16,7 @@ const requiredBundleModules = [
     'modules/elevate-resource-management/handlers/target-list-launcher',
     'modules/elevate-resource-management/handlers/target-controls',
     'modules/elevate-resource-management/handlers/instance-guidance',
+    'modules/elevate-resource-management/utils/fetch-all-records',
     'modules/elevate-resource-management/views/time-action-modal',
     'modules/elevate-resource-management/views/work-block-editor',
     'modules/elevate-resource-management/views/fields/default-work-blocks',
@@ -36,6 +37,10 @@ for (const id of requiredBundleModules) {
 
 if (bundleSource.includes('define([')) {
     throw new Error('Bundle contains an anonymous AMD module.');
+}
+
+if (/define\("[^"]+",\[[^\]]*"\.\.?\/[^"]+"/.test(bundleSource)) {
+    throw new Error('Bundle contains a relative dependency that EspoCRM cannot resolve safely.');
 }
 
 const files = await readdir(build);

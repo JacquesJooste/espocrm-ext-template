@@ -1,11 +1,12 @@
 {
   "name": "espocrm-ext-elevate-resource-management",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "Time capture, capacity planning, reporting and billing readiness for EspoCRM 10.",
   "scripts": {
     "sa": "php vendor/bin/phpstan --memory-limit=512M",
     "unit-tests": "php vendor/bin/phpunit",
-    "test": "php vendor/bin/phpunit",
+    "client-tests": "node --test tests/client/fetch-all-records.test.mjs",
+    "test": "npm run unit-tests && npm run client-tests",
     "validate": "node tools/validate.mjs",
     "dist": "node tools/validate.mjs && node build --extension && node tools/finalize-dist.mjs",
     "integration-tests": "php vendor/bin/phpunit --configuration phpunit.integration.xml",

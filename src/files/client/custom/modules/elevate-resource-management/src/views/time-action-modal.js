@@ -1,4 +1,6 @@
 import ModalView from 'views/modal';
+import {fetchAllRecords} from
+    'elevate-resource-management:utils/fetch-all-records';
 
 export default class extends ModalView {
     className = 'dialog dialog-record elevate-rm-action-modal';
@@ -111,16 +113,15 @@ export default class extends ModalView {
     }
 
     async loadUsers() {
-        const response = await Espo.Ajax.getRequest('User', {
+        const users = await fetchAllRecords('User', {
             where: [{type: 'and', value: [
                 {type: 'equals', attribute: 'isActive', value: true},
                 {type: 'in', attribute: 'type', value: ['regular', 'admin']},
             ]}],
-            maxSize: 200,
             orderBy: 'name',
         });
         const currentUserId = this.getUser()?.id;
-        this.users = (response.list || []).map(user => ({
+        this.users = users.map(user => ({
             ...user,
             selected: user.id === currentUserId,
         }));

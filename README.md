@@ -1,6 +1,6 @@
 # Elevate Resource Management
 
-Elevate Resource Management 0.2.0 is an EspoCRM 10.x extension built around reusable Work Items, composed Work Blocks, timer-first Time Entries, scheduled resource planning, capacity visibility, reporting, and billing readiness.
+Elevate Resource Management 0.2.2 is an EspoCRM 10.x extension built around reusable Work Items, composed Work Blocks, timer-first Time Entries, scheduled resource planning, capacity visibility, reporting, and billing readiness.
 
 It is deliberately data-agnostic. Administrators map an instance to an existing target entity and existing fields/status values. The extension never adds fields, relationships, or enum options to that target.
 

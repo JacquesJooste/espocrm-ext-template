@@ -1,4 +1,6 @@
 import BaseFieldView from 'views/fields/base';
+import {fetchAllRecords} from
+    'elevate-resource-management:utils/fetch-all-records';
 
 export default class extends BaseFieldView {
     type = 'jsonArray';
@@ -24,16 +26,14 @@ export default class extends BaseFieldView {
         if (!this.model.id) {
             return;
         }
-        const response = await Espo.Ajax.getRequest('ElevateRmWorkBlockTemplate', {
+        this.items = await fetchAllRecords('ElevateRmWorkBlockTemplate', {
             where: [{
                 type: 'equals',
                 attribute: 'instanceId',
                 value: this.model.id,
             }],
-            maxSize: 500,
             orderBy: 'defaultOrder',
         });
-        this.items = response.list || [];
         const authoritative = this.items
             .filter(item => item.isDefault)
             .sort((a, b) => Number(a.defaultOrder || 0) - Number(b.defaultOrder || 0))

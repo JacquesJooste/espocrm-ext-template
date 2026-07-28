@@ -1,5 +1,13 @@
 # Release and rollout
 
+## 0.2.2 loader compatibility hotfix
+
+Release 0.2.2 uses absolute EspoCRM module IDs for the shared pagination helper. This prevents the production loader from resolving the helper outside the extension bundle and restores the Time Management workspace after upgrading from 0.2.1. Validation now rejects relative dependencies in bundled client modules.
+
+## 0.2.1 pagination hardening
+
+Release 0.2.1 loads complete record collections in EspoCRM-safe batches of 200. This prevents the record-list access error in the Work Item and Work Block libraries, Instance selectors, default Work Block ordering, and attending-user selectors without raising the server's `recordListMaxSizeLimit`.
+
 ## 0.1.9 hardening boundary
 
 Release 0.1.9 contains only production hardening:

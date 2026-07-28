@@ -1,4 +1,6 @@
 import ModalView from 'views/modal';
+import {fetchAllRecords} from
+    'elevate-resource-management:utils/fetch-all-records';
 
 export default class extends ModalView {
     className = 'dialog dialog-record elevate-rm-work-block-editor';
@@ -79,19 +81,17 @@ export default class extends ModalView {
 
     async load() {
         const [instances, workItems] = await Promise.all([
-            Espo.Ajax.getRequest('ElevateRmInstance', {
+            fetchAllRecords('ElevateRmInstance', {
                 where: [{type: 'notEquals', attribute: 'status', value: 'Archived'}],
-                maxSize: 200,
                 orderBy: 'name',
             }),
-            Espo.Ajax.getRequest('ElevateRmWorkItem', {
+            fetchAllRecords('ElevateRmWorkItem', {
                 where: [{type: 'equals', attribute: 'active', value: true}],
-                maxSize: 500,
                 orderBy: 'name',
             }),
         ]);
-        this.instances = instances.list || [];
-        this.workItems = workItems.list || [];
+        this.instances = instances;
+        this.workItems = workItems;
 
         if (this.workBlockId) {
             this.workBlock = await Espo.Ajax.getRequest(
