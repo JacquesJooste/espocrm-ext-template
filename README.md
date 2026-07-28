@@ -29,7 +29,7 @@ Create `config.json` file in the root directory, or copy `config-default.json`:
 cp config-default.json config.json
 ```
 
-When extension tools read config parameters, config-default is used as a fallback source. You can override default parameters in the `config.json` file.
+When extension tools read config parameters, `config-default.json` is used as the fallback source. You can override default parameters in the `config.json` file.
 
 Parameters:
 
