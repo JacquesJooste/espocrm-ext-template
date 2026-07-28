@@ -159,13 +159,12 @@ You can remove `copy-custom.js` from the repository if you don't plan to use it 
 
 ## Using composer in extension
 
-If your extension requires additional libraries, they can be installed by composer:
+If your extension requires additional libraries, they can be installed by Composer:
 
 1. Create a file `src/files/custom/Espo/Modules/{@name}/composer.json` with your dependencies. You can change dir to this directory and add composer dependencies using *composer require*.
-2. Once you run `node build --all` or `node build --composer-install`, composer dependencies will be automatically installed.
+2. Once you run `npm run all` or `npm run composer-install`, composer dependencies will be automatically installed.
 3. Create a file `src/files/custom/Espo/Modules/{@name}/Resources/autoload.json`.
 
-Note: The extension build will contain only the `vendor` directory without the `composer.json` file.
 
 The `autoload.json` file defines paths for namespaces:
 
@@ -177,7 +176,7 @@ The `autoload.json` file defines paths for namespaces:
 }
 ```
 
-This definition is needed because in EspoCRM extensions are not installed via composer, they are included in runtime.
+This definition is needed because in EspoCRM extensions are not installed via Composer, they are included in runtime.
 
 For static analysis, add to `phpstan.neon`:
 
@@ -187,6 +186,10 @@ For static analysis, add to `phpstan.neon`:
     scanDirectories:
         - site/custom/Espo/Modules/{@name}/vendor
 ```
+
+Note: The extension build will contain only the `vendor` directory without the `composer.json` file.
+
+Note: You need to git commit both `composer.json` and `composer.lock` files.
 
 ## Versioning
 
