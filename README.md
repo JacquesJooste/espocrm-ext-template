@@ -23,14 +23,18 @@ After initialization, you can remove `init.php` file from your repository. Commi
 
 ## Configuration
 
-Create `config.json` file in the root directory. You can copy `config-default.json` and rename it to `config.json`.
+Create `config.json` file in the root directory, or copy `config-default.json`:
 
-When reading, this config will be merged with `config-default.json`. You can override default parameters in the created config.
+```
+cp config-default.json config.json
+```
+
+When extension tools read config parameters, config-default is used as a fallback source. You can override default parameters in the `config.json` file.
 
 Parameters:
 
 * espocrm.repository – from what repository to fetch EspoCRM;
-* espocrm.branch – what branch to fetch (`stable` is set by default); you can specify version number instead (e.g. `9.1.0`);
+* espocrm.branch – what branch to fetch (`stable` is set by default); you can specify version number instead (e.g. `10.0.0`);
 * database - credentials of the dev database;
 * install.siteUrl – site url of the dev instance;
 * install.defaultOwner – a webserver owner (important to be set right);
