@@ -88,6 +88,7 @@ export default class extends ModalView {
             fetchAllRecords('ElevateRmWorkItem', {
                 where: [{type: 'equals', attribute: 'active', value: true}],
                 orderBy: 'name',
+                select: 'id,name,description,defaultEstimateSeconds,active',
             }),
         ]);
         this.instances = instances;
@@ -297,6 +298,7 @@ export default class extends ModalView {
                 ? row.defaultEstimateSeconds
                 : row.estimateOverrideSeconds;
             return row.isNew && (!row.name.trim() || seconds < 900 || seconds > 86400 || seconds % 900 !== 0) ||
+                (!row.isNew && !row.workItemId) ||
                 (!row.isNew && seconds != null && (seconds < 900 || seconds > 86400 || seconds % 900 !== 0));
         });
         if (invalid) {

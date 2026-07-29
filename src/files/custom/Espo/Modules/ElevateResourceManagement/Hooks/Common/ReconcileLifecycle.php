@@ -11,11 +11,22 @@ final class ReconcileLifecycle implements LateAfterSave
 {
     public static int $order = 100;
 
+    /** @var string[] */
+    private const EXCLUDED_ENTITY_TYPES = [
+        'Email',
+        'EmailAddress',
+        'EmailAccount',
+        'InboundEmail',
+        'EmailFilter',
+        'EmailFolder',
+    ];
+
     public function __construct(private ApplicationService $service) {}
 
     public function lateAfterSave(Entity $entity, SaveOptions $options): void
     {
         if (in_array($entity->getEntityType(), [
+            ...self::EXCLUDED_ENTITY_TYPES,
             'ElevateRmSettings',
             'ElevateRmInstance',
             'ElevateRmBillingSnapshot',

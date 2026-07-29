@@ -1,1 +1,7 @@
-{"controller":"controllers/record","iconClass":"fas fa-tasks"}
+{
+  "controller": "controllers/record",
+  "iconClass": "fas fa-tasks",
+  "views": {
+    "edit": "elevate-resource-management:views/work-item-edit"
+  }
+}

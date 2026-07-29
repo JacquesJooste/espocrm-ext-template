@@ -12,6 +12,14 @@ final class ValidateConfiguration implements BeforeSave
 {
     private const OPERATORS = ['equals', 'notEquals', 'in', 'isEmpty', 'isNotEmpty'];
     private const SCALAR_TYPES = ['varchar', 'text', 'enum', 'multiEnum', 'int', 'float', 'autoincrement', 'bool', 'date', 'datetime', 'datetimeOptional'];
+    private const FORBIDDEN_TARGET_TYPES = [
+        'Email',
+        'EmailAddress',
+        'EmailAccount',
+        'InboundEmail',
+        'EmailFilter',
+        'EmailFolder',
+    ];
 
     public function __construct(private Metadata $metadata) {}
 
@@ -19,7 +27,12 @@ final class ValidateConfiguration implements BeforeSave
     {
         $targetType = (string) $entity->get('targetEntityType');
 
-        if ($targetType === '' || str_starts_with($targetType, 'ElevateRm') || $targetType === 'ElevateResourceManagement') {
+        if (
+            $targetType === '' ||
+            str_starts_with($targetType, 'ElevateRm') ||
+            $targetType === 'ElevateResourceManagement' ||
+            in_array($targetType, self::FORBIDDEN_TARGET_TYPES, true)
+        ) {
             throw new BadRequest('A non-extension target entity is required.');
         }
 

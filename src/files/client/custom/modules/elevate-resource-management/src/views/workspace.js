@@ -108,6 +108,7 @@ export default class extends View {
                 const [workItems, workBlocks] = await Promise.all([
                     fetchAllRecords('ElevateRmWorkItem', {
                         orderBy: 'name',
+                        select: 'id,name,defaultEstimateSeconds,active',
                     }),
                     fetchAllRecords('ElevateRmWorkBlockTemplate', {
                         where: [{
@@ -142,6 +143,7 @@ export default class extends View {
                 {type: 'in', attribute: 'type', value: ['regular', 'admin']},
             ]}],
             orderBy: 'name',
+            select: 'id,name,type,isActive',
         });
     }
 
@@ -155,6 +157,9 @@ export default class extends View {
         this.$el.find('[data-action="create-work-block"]').on('click', () => this.openWorkBlockEditor());
         this.$el.find('[data-action="edit-work-block"]').on('click', event => {
             this.openWorkBlockEditor(event.currentTarget.dataset.id);
+        });
+        this.$el.find('[data-action="delete-instance"]').on('click', event => {
+            this.deleteInstance(event.currentTarget.dataset.id);
         });
         this.renderCapacityChart();
         this.renderGantt();
@@ -234,7 +239,7 @@ export default class extends View {
         </div><div class="row">
             <section class="col-md-5">
                 <div class="elevate-rm-section-heading"><div><h4>Work Items</h4><p class="text-muted">Reusable activities with a canonical description and estimate.</p></div>
-                <a class="btn btn-default" href="#ElevateRmWorkItem/create">Create Work Item</a></div>
+                <a class="btn btn-default" href="#ElevateRmWorkItem/create?rootUrl=${encodeURIComponent('#ElevateResourceManagement/library')}&returnUrl=${encodeURIComponent('#ElevateResourceManagement/library')}">Create Work Item</a></div>
                 <div class="table-responsive"><table class="table table-striped"><thead><tr><th>Item</th><th>Estimate</th><th>Status</th></tr></thead><tbody>${itemRows || '<tr><td colspan="3" class="text-muted">No Work Items yet.</td></tr>'}</tbody></table></div>
             </section>
             <section class="col-md-7">
@@ -246,13 +251,27 @@ export default class extends View {
     }
 
     setupContent(settings, users) {
-        const options = selected => users.map(user =>
+        const managerUsers = [...users];
+        [
+            ['operationsManagerId', 'operationsManagerName'],
+            ['billingAdministratorId', 'billingAdministratorName'],
+        ].forEach(([idField, nameField]) => {
+            const id = settings[idField];
+            if (id && !managerUsers.some(user => user.id === id)) {
+                managerUsers.push({
+                    id,
+                    name: settings[nameField] || 'Configured user',
+                });
+            }
+        });
+        const options = selected => managerUsers.map(user =>
             `<option value="${this.escape(user.id)}" ${user.id === selected ? 'selected' : ''}>${this.escape(user.name)}</option>`
         ).join('');
         const instanceRows = this.instances.map(instance => `<tr>
             <td><a href="#ElevateRmInstance/view/${this.escape(instance.id)}">${this.escape(instance.name)}</a></td>
             <td>${this.escape(instance.mode)}</td><td>${this.escape(instance.targetEntityType)}</td>
             <td>${this.escape(instance.status)}</td>
+            <td><button type="button" class="btn btn-danger btn-xs" data-action="delete-instance" data-id="${this.escape(instance.id)}">Delete</button></td>
         </tr>`).join('');
         return `<div class="row">
             <section class="col-md-6">
@@ -265,9 +284,33 @@ export default class extends View {
             </section>
             <section class="col-md-6">
                 <div class="elevate-rm-section-heading"><div><h4>Instances</h4><p class="text-muted">Connect Time Management to existing CRM entities.</p></div><a class="btn btn-default" href="#ElevateRmInstance/create">Create Instance</a></div>
-                <div class="table-responsive"><table class="table table-striped"><thead><tr><th>Instance</th><th>Type</th><th>Target</th><th>Status</th></tr></thead><tbody>${instanceRows || '<tr><td colspan="4" class="text-muted">No Instances configured.</td></tr>'}</tbody></table></div>
+                <div class="table-responsive"><table class="table table-striped"><thead><tr><th>Instance</th><th>Type</th><th>Target</th><th>Status</th><th></th></tr></thead><tbody>${instanceRows || '<tr><td colspan="5" class="text-muted">No Instances configured.</td></tr>'}</tbody></table></div>
             </section>
         </div>`;
+    }
+
+    async deleteInstance(id) {
+        const instance = this.instances.find(item => item.id === id);
+        const name = instance?.name || 'this Instance';
+        if (!window.confirm(`Delete ${name}? Instances with planning or time history cannot be deleted.`)) {
+            return;
+        }
+
+        const $button = this.$el.find(`[data-action="delete-instance"][data-id="${this.escape(id)}"]`);
+        $button.prop('disabled', true);
+        try {
+            await Espo.Ajax.deleteRequest(`ElevateRmInstance/${id}`);
+            if (this.selectedInstanceId === id) {
+                localStorage.removeItem('elevateRmInstanceId');
+                this.selectedInstanceId = '';
+            }
+            await this.load();
+            Espo.Ui.success('Instance deleted.');
+            this.reRender();
+        } catch (error) {
+            Espo.Ui.error(error?.message || 'The Instance could not be deleted.');
+            $button.prop('disabled', false);
+        }
     }
 
     async saveSettings() {

@@ -21,7 +21,7 @@ final class Endpoint implements Action
             throw new BadRequest('Missing operation.');
         }
 
-        $body = (array) $request->getParsedBody();
+        $body = $this->normalizeObject($request->getParsedBody());
         $result = match ($operation) {
             'settings' => $this->service->settings(),
             'permissions' => $this->service->permissions(),
@@ -95,5 +95,37 @@ final class Endpoint implements Action
         }
 
         return $value;
+    }
+
+    /** @return array<string, mixed> */
+    private function normalizeObject(mixed $value): array
+    {
+        if (is_object($value)) {
+            $value = (array) $value;
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return array_map(
+            fn (mixed $item): mixed => is_array($item) || is_object($item)
+                ? $this->normalizeValue($item)
+                : $item,
+            $value
+        );
+    }
+
+    private function normalizeValue(mixed $value): mixed
+    {
+        if (is_object($value)) {
+            $value = (array) $value;
+        }
+
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        return array_map(fn (mixed $item): mixed => $this->normalizeValue($item), $value);
     }
 }
