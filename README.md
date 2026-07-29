@@ -182,7 +182,7 @@ For static analysis, add to `phpstan.neon`:
 
 ```
     excludePaths:
-        - src/files/custom/Espo/Modules/{@name}/vendor
+        - src/files/custom/Espo/Modules/*/vendor
     scanDirectories:
         - site/custom/Espo/Modules/{@name}/vendor
 ```
