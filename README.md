@@ -404,4 +404,4 @@ npm update
 
 (change this section after initialization)
 
-Change the license in `LICENSE` file. The current license is intended for scripts of this repository. It's not supposed to be used for code of your extension.
+Change the license in `LICENSE` file.
