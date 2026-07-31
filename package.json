@@ -1,6 +1,6 @@
 {
   "name": "espocrm-ext-elevate-resource-management",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Time capture, capacity planning, reporting and billing readiness for EspoCRM 10.",
   "scripts": {
     "sa": "php vendor/bin/phpstan --memory-limit=512M",

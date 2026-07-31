@@ -162,6 +162,9 @@ final class ApplicationService
         }
         $orderedItems = [];
         foreach (array_values($items) as $inputOrder => $row) {
+            if (is_object($row)) {
+                $row = (array) $row;
+            }
             if (!is_array($row)) {
                 throw new BadRequest('Invalid Work Item row.');
             }
@@ -243,6 +246,9 @@ final class ApplicationService
         }
 
         $create = $row['create'] ?? null;
+        if (is_object($create)) {
+            $create = (array) $create;
+        }
         if (!is_array($create)) {
             throw new BadRequest('Select or create a Work Item.');
         }
