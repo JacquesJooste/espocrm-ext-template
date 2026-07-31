@@ -1,6 +1,8 @@
 import View from 'view';
 import {fetchAllRecords} from
     'elevate-resource-management:utils/fetch-all-records';
+import {reportEntry, reportEntryText} from
+    'elevate-resource-management:utils/report-entry';
 
 export default class extends View {
     templateContent = `
@@ -95,15 +97,15 @@ export default class extends View {
                 this.capacityData = data;
                 this.content = this.capacityTable(data);
             } else if (this.tab === 'reporting') {
-                const report = await Espo.Ajax.postRequest('ElevateResourceManagement/reports', {
-                    instanceId: this.selectedInstanceId,
-                });
-                this.content = `<div class="elevate-rm-kpis">
+                if (!this.users) this.users = await this.loadUsers();
+                const report = await this.loadReport();
+                this.reportData = report;
+                this.content = `${this.reportFilters()}<div class="elevate-rm-kpis">
                     <div><span>Entries</span><strong>${report.summary.entryCount}</strong></div>
                     <div><span>Elapsed</span><strong>${this.duration(report.summary.elapsedSeconds)}</strong></div>
                     <div><span>Labour</span><strong>${this.duration(report.summary.labourSeconds)}</strong></div>
                     <div><span>Resources</span><strong>${report.summary.resourceCount}</strong></div>
-                </div>${this.entriesTable(report.items)}`;
+                </div>${this.entriesReport(report.items)}`;
             } else if (this.tab === 'library') {
                 const [workItems, workBlocks] = await Promise.all([
                     fetchAllRecords('ElevateRmWorkItem', {
@@ -161,6 +163,16 @@ export default class extends View {
         this.$el.find('[data-action="delete-instance"]').on('click', event => {
             this.deleteInstance(event.currentTarget.dataset.id);
         });
+        this.$el.find('[data-action="apply-report-filters"]').on('click', () => {
+            this.reportFiltersState = {
+                from: this.$el.find('[data-name="reportFrom"]').val(),
+                to: this.$el.find('[data-name="reportTo"]').val(),
+                userId: this.$el.find('[data-name="reportUserId"]').val(),
+            };
+            this.loadContent().then(() => this.reRender());
+        });
+        this.$el.find('[data-action="copy-report"]').on('click', () => this.copyReport());
+        this.$el.find('[data-action="download-report"]').on('click', () => this.downloadReport());
         this.renderCapacityChart();
         this.renderGantt();
     }
@@ -388,11 +400,63 @@ export default class extends View {
             ${advice ? `<div class="alert alert-info"><strong>Planning advice</strong><ul>${advice}</ul></div>` : ''}</div>`;
     }
 
-    entriesTable(items) {
-        const rows = (items || []).map(item =>
-            `<tr><td>${this.escape(item.targetIdentifier)}</td><td>${this.escape(item.blockName)}</td><td>${this.escape(item.workItemName || 'Legacy entry')}</td><td>${this.escape(item.dateStart)}</td><td>${this.duration(item.includedElapsedSeconds)}</td><td>${this.duration(item.includedLabourSeconds)}</td><td>${this.escape((item.attendeeNames || []).join(', '))}</td></tr>`
+    async loadReport() {
+        const filters = this.reportFiltersState || {};
+        const payload = {instanceId: this.selectedInstanceId};
+        if (filters.from) payload.from = `${filters.from} 00:00:00`;
+        if (filters.to) payload.to = `${filters.to} 23:59:59`;
+        if (filters.userId) payload.userId = filters.userId;
+
+        return Espo.Ajax.postRequest('ElevateResourceManagement/reports', payload);
+    }
+
+    reportFilters() {
+        const filters = this.reportFiltersState || {};
+        const users = (this.users || []).map(user =>
+            `<option value="${this.escape(user.id)}" ${filters.userId === user.id ? 'selected' : ''}>${this.escape(user.name)}</option>`
         ).join('');
-        return `<div class="table-responsive"><table class="table table-striped"><thead><tr><th>Target</th><th>Work Block</th><th>Work Item</th><th>Start</th><th>Elapsed</th><th>Labour</th><th>Team</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+        return `<div class="elevate-rm-report-toolbar">
+            <div class="form-group"><label>From</label><input class="form-control" type="date" data-name="reportFrom" value="${this.escape(filters.from || '')}"></div>
+            <div class="form-group"><label>To</label><input class="form-control" type="date" data-name="reportTo" value="${this.escape(filters.to || '')}"></div>
+            <div class="form-group"><label>Team member</label><select class="form-control" data-name="reportUserId"><option value="">All team members</option>${users}</select></div>
+            <button class="btn btn-primary" type="button" data-action="apply-report-filters">Apply</button>
+            <div class="elevate-rm-report-actions"><button class="btn btn-default" type="button" data-action="copy-report">Copy report</button><button class="btn btn-default" type="button" data-action="download-report">Download CSV</button></div>
+        </div>`;
+    }
+
+    entriesReport(items) {
+        const cards = (items || []).map(item => {
+            const entry = reportEntry(item);
+            const note = entry.flagged || entry.note
+                ? `<div class="elevate-rm-report-note ${entry.flagged ? 'is-flagged' : ''}"><strong>${entry.flagged ? 'Flagged' : 'Note'}</strong>${entry.note ? ` · ${this.escape(entry.note)}` : ''}</div>`
+                : '';
+            return `<article class="elevate-rm-report-entry">
+                <div class="elevate-rm-report-meta"><strong>${this.escape(entry.date)}</strong><span>${this.escape(entry.start)} – ${this.escape(entry.finish)}</span><span>Team of ${entry.teamCount}: ${this.escape(entry.teamNames)}</span></div>
+                <div class="elevate-rm-report-target">${this.escape(item.targetIdentifier || item.targetName)} · ${this.escape(item.blockName)}</div>
+                <div class="elevate-rm-report-content">${this.escape(entry.content)}</div>${note}
+            </article>`;
+        }).join('');
+        return `<div class="elevate-rm-report-list">${cards || '<div class="text-muted">No time entries match these filters.</div>'}</div>`;
+    }
+
+    async copyReport() {
+        const text = (this.reportData?.items || []).map(reportEntryText).join('\n\n---\n\n');
+        try {
+            await navigator.clipboard.writeText(text);
+            Espo.Ui.success('Report copied.');
+        } catch {
+            Espo.Ui.error('The report could not be copied by this browser.');
+        }
+    }
+
+    downloadReport() {
+        const blob = new Blob([this.reportData?.csv || ''], {type: 'text/csv;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'time-report.csv';
+        link.click();
+        URL.revokeObjectURL(url);
     }
 
     emptyMessage() {
