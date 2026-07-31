@@ -176,6 +176,28 @@
   font-size: 22px;
 }
 
+.elevate-rm-report-toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 7px;
+  background: var(--gray-lighter, #f5f5f5);
+}
+
+.elevate-rm-report-toolbar .form-group { margin: 0; }
+.elevate-rm-report-toolbar .form-control { min-width: 160px; }
+.elevate-rm-report-actions { display: flex; gap: 6px; margin-left: auto; }
+.elevate-rm-report-list { display: grid; gap: 12px; }
+.elevate-rm-report-entry { padding: 18px; border: 1px solid var(--panel-default-border, #ddd); border-left: 4px solid #4f6bed; border-radius: 6px; }
+.elevate-rm-report-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.elevate-rm-report-target { margin-top: 10px; color: var(--gray-soft, #777); font-size: 12px; }
+.elevate-rm-report-content { margin-top: 8px; white-space: pre-wrap; }
+.elevate-rm-report-note { margin-top: 12px; padding: 8px 10px; border-radius: 4px; background: rgba(79, 107, 237, .1); }
+.elevate-rm-report-note.is-flagged { background: rgba(220, 90, 70, .12); color: #a73525; }
+
 .elevate-rm-content {
   min-height: 240px;
   overflow-x: auto;

@@ -5,7 +5,7 @@
   "scripts": {
     "sa": "php vendor/bin/phpstan --memory-limit=512M",
     "unit-tests": "php vendor/bin/phpunit",
-    "client-tests": "node --test tests/client/fetch-all-records.test.mjs",
+    "client-tests": "node --test tests/client/*.test.mjs",
     "test": "npm run unit-tests && npm run client-tests",
     "validate": "node tools/validate.mjs",
     "dist": "node tools/validate.mjs && node build --extension && node tools/finalize-dist.mjs",
